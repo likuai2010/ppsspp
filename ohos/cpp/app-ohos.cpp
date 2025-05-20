@@ -1171,10 +1171,10 @@ static napi_value joystickAxis(napi_env env, napi_callback_info info) {
         int id;
         napi_get_value_int32(env, element, &id);
         axisIds[i] = id;
-        napi_get_element(env, params[3], i, &element);
+        napi_get_element(env, params[2], i, &element);
         double value;
         napi_get_value_double(env, element, &value);
-        axisIds[i] = value;
+        values[i] = value;
     }
     AxisInput *axis = new AxisInput[count];
     for (int i = 0; i < count; i++) {

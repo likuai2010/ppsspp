@@ -30,9 +30,6 @@
 #ifdef USE_CRT_DBG
 #define new DBG_NEW
 #endif
-#if defined(__OHOS__)
-#include <vulkan/vulkan_ohos.h>
-#endif
 using namespace PPSSPP_VK;
 
 VulkanLogOptions g_LogOptions;

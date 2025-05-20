@@ -36,13 +36,7 @@
 #define VK_ENABLE_BETA_EXTENSIONS				1		// VK_KHR_portability_subset
 #endif
 
-#if PPSSPP_PLATFORM(OHOS)
-#undef VK_ENABLE_BETA_EXTENSIONS
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
-#else
-    #include "ext/vulkan/vulkan.h"
-#endif
+#include "ext/vulkan/vulkan.h"
 #include <string>
 
 // Hacky X11 header workaround
