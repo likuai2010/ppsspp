@@ -13,9 +13,7 @@ if(DEFINED PACKAGE_FIND_FILE)
     include(${PACKAGE_FIND_FILE})
 endif()
 
-include_directories(${NATIVERENDER_ROOT_PATH}
-                    ${NATIVERENDER_ROOT_PATH}/ppsspp
-                    ${NATIVERENDER_ROOT_PATH}/include)
+
 
 find_library(
     # Sets the name of the path variable.
@@ -64,20 +62,23 @@ find_library(
     # you want CMake to locate.
     uv
 )
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../../ "${CMAKE_CURRENT_BINARY_DIR}/ppspp")
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../../ "${CMAKE_CURRENT_BINARY_DIR}/ppsspp")
+include_directories(${NATIVERENDER_ROOT_PATH}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../
+                    ${NATIVERENDER_ROOT_PATH}/include)
 
 add_library(entry SHARED
     napi_init.cpp
-#    render/egl_core.cpp
-#    render/plugin_render.cpp
-#    manager/plugin_manager.cpp
+    render/egl_core.cpp
+    render/plugin_render.cpp
+    manager/plugin_manager.cpp
 )
 target_link_libraries(entry PUBLIC
 					libace_napi.z.so
 					vulkan
                     libace_ndk.z.so
                     libnative_window.so
-                    #ppsspp_core
+                    ppsspp_core
                     libohfileuri.so
    ${EGL-lib} ${GLES-lib} ${hilog-lib} ${libace-lib} ${libnapi-lib} ${libuv-lib} libc++.a
 )

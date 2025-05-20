@@ -62,7 +62,7 @@
 #include "android/jni/app-android.h"
 #endif
 #if PPSSPP_PLATFORM(OHOS)
-#include "ohos/ohos-log.h"
+#include "ohos/cpp/ohos-log.h"
 #endif
 
 #include "Common/System/Display.h"

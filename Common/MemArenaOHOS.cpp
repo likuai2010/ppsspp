@@ -67,7 +67,7 @@ static int legacy_ashmem_create_region(const char *name, size_t size) {
 	return fd;
 
 error:
-	ERROR_LOG(MEMMAP, "NASTY ASHMEM ERROR: ret = %08x", ret);
+	ERROR_LOG(Log::MemMap, "NASTY ASHMEM ERROR: ret = %08x", ret);
 	close(fd);
 	return ret;
 }
@@ -84,7 +84,7 @@ bool MemArena::GrabMemSpace(size_t size) {
     fd = legacy_ashmem_create_region(name, size);
     // Note that it appears that ashmem is pinned by default, so no need to pin.
 	if (fd < 0) {
-		ERROR_LOG(MEMMAP, "Failed to grab ashmem space of size: %08x  errno: %d", (int)size, (int)(errno));
+		ERROR_LOG(Log::MemMap, "Failed to grab ashmem space of size: %08x  errno: %d", (int)size, (int)(errno));
 		return false;
 	}
 	return true;
@@ -97,7 +97,7 @@ void MemArena::ReleaseSpace() {
 void *MemArena::CreateView(s64 offset, size_t size, void *base) {
 	void *retval = mmap(base, size, PROT_READ | PROT_WRITE, MAP_SHARED | ((base == 0) ? 0 : MAP_FIXED), fd, offset);
 	if (retval == MAP_FAILED) {
-		NOTICE_LOG(MEMMAP, "mmap on ashmem (fd: %d) failed", (int)fd);
+		NOTICE_LOG(Log::MemMap, "mmap on ashmem (fd: %d) failed", (int)fd);
 		return nullptr;
 	}
 	return retval;
@@ -116,14 +116,14 @@ u8* MemArena::Find4GBBase() {
 	const uint64_t EIGHT_GIGS = 0x200000000ULL;
 	void *base = mmap(0, EIGHT_GIGS, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	if (base && base != MAP_FAILED) {
-		INFO_LOG(SYSTEM, "base: %p", base);
+		INFO_LOG(Log::System, "base: %p", base);
 		uint64_t aligned_base = ((uint64_t)base + 0xFFFFFFFF) & ~0xFFFFFFFFULL;
-		INFO_LOG(SYSTEM, "aligned_base: %p", (void *)aligned_base);
+		INFO_LOG(Log::System, "aligned_base: %p", (void *)aligned_base);
 		munmap(base, EIGHT_GIGS);
 		return reinterpret_cast<u8 *>(aligned_base);
 	} else {
 		u8 *hardcoded_ptr = reinterpret_cast<u8*>(0x2300000000ULL);
-		INFO_LOG(SYSTEM, "Failed to anonymously map 8GB. Fall back to the hardcoded pointer %p.", hardcoded_ptr);
+		INFO_LOG(Log::System, "Failed to anonymously map 8GB. Fall back to the hardcoded pointer %p.", hardcoded_ptr);
 		// Just grab some random 4GB...
 		// This has been known to fail lately though, see issue #12249.
 		return hardcoded_ptr;

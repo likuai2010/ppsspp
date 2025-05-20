@@ -1,13 +1,13 @@
 #include "napi/native_api.h"
-//#include "manager/plugin_manager.h"
-//#include "ppsspp/ohos/app-ohos.h"
+#include "manager/plugin_manager.h"
+#include "ohos/cpp/app-ohos.h"
 
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
    
-//    ExportApi(env, exports);
-//    Native_Init(env, nullptr);
-    //PluginManager::GetInstance()->Export(env, exports);
+    ExportApi(env, exports);
+    Native_Init(env, nullptr);
+    PluginManager::GetInstance()->Export(env, exports);
     return exports;
 }
 EXTERN_C_END

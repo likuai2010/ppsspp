@@ -33,7 +33,7 @@ void *GLRBuffer::Map(GLBufferStrategy strategy) {
 				GLbitfield storageFlags = access & ~(GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_FLUSH_EXPLICIT_BIT);
 #ifdef USING_GLES2
 #ifdef GL_EXT_buffer_storage
-				glBufferStorageEXT(target_, size_, nullptr, storageFlags);
+				gles3::glBufferStorageEXT(target_, size_, nullptr, storageFlags);
 #endif
 #else
 				glBufferStorage(target_, size_, nullptr, storageFlags);
@@ -41,10 +41,10 @@ void *GLRBuffer::Map(GLBufferStrategy strategy) {
 				hasStorage_ = true;
 			}
 #endif
-			p = glMapBufferRange(target_, 0, size_, access);
+			p = gles3::glMapBufferRange(target_, 0, size_, access);
 		} else if (gl_extensions.VersionGEThan(3, 0, 0)) {
 			// GLES3 or desktop 3.
-			p = glMapBufferRange(target_, 0, size_, access);
+			p = gles3::glMapBufferRange(target_, 0, size_, access);
 		} else if (!gl_extensions.IsGLES) {
 #ifndef USING_GLES2
 			p = glMapBuffer(target_, GL_READ_WRITE);
@@ -59,7 +59,7 @@ void *GLRBuffer::Map(GLBufferStrategy strategy) {
 bool GLRBuffer::Unmap() {
 	glBindBuffer(target_, buffer_);
 	mapped_ = false;
-	return glUnmapBuffer(target_) == GL_TRUE;
+	return gles3::glUnmapBuffer(target_) == GL_TRUE;
 }
 
 GLPushBuffer::GLPushBuffer(GLRenderManager *render, GLuint target, size_t size, const char *tag) : render_(render), nextBufferSize_(size), target_(target), tag_(tag) {
@@ -130,7 +130,7 @@ void GLPushBuffer::Flush() {
 				continue;
 
 			glBindBuffer(target_, info.buffer->buffer_);
-			glFlushMappedBufferRange(target_, 0, info.flushOffset);
+			gles3::glFlushMappedBufferRange(target_, 0, info.flushOffset);
 			info.flushOffset = 0;
 		}
 	}

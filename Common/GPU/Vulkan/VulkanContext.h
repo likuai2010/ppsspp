@@ -468,8 +468,6 @@ private:
 	VkSurfaceKHR surface_ = VK_NULL_HANDLE;
 	u32 vulkanInstanceApiVersion_ = 0;
 	u32 vulkanDeviceApiVersion_ = 0;
-	// ohos
-	u32 vulkanApiVersion_ = 0;
 
 	std::string init_error_;
 	std::vector<const char *> instance_layer_names_;

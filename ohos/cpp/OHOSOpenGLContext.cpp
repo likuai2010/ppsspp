@@ -46,7 +46,7 @@ bool OHOSOpenEGLGraphicsContext::CreateEnvironment()
     m_eglSurface = eglCreateWindowSurface(m_eglDisplay, m_eglConfig, m_eglWindow, NULL);
 
     if (nullptr == m_eglSurface) {
-         ERROR_LOG(G3D,
+         ERROR_LOG(Log::G3D,
             "eglCreateWindowSurface: unable to create surface");
         return false;
     }
@@ -54,7 +54,7 @@ bool OHOSOpenEGLGraphicsContext::CreateEnvironment()
     // Create context.
     m_eglContext = eglCreateContext(m_eglDisplay, m_eglConfig, EGL_NO_CONTEXT, CONTEXT_ATTRIBS);
     if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
-         ERROR_LOG(G3D,"eglMakeCurrent failed");
+         ERROR_LOG(Log::G3D, "eglMakeCurrent failed");
         return false;
     }
 
@@ -63,9 +63,9 @@ bool OHOSOpenEGLGraphicsContext::CreateEnvironment()
 
 
 bool OHOSOpenEGLGraphicsContext::initializeEgl(void *wnd, int width, int height){
-    INFO_LOG(G3D, "EglContextInit execute");
+    INFO_LOG(Log::G3D, "EglContextInit execute");
     if ((nullptr == wnd) || (0 >= width) || (0 >= height)) {
-        INFO_LOG(G3D,  "EglContextInit: param error");
+        INFO_LOG(Log::G3D,  "EglContextInit: param error");
         return false;
     }
 
@@ -79,14 +79,14 @@ bool OHOSOpenEGLGraphicsContext::initializeEgl(void *wnd, int width, int height)
     // Init display.
     m_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (EGL_NO_DISPLAY == m_eglDisplay) {
-        ERROR_LOG(G3D, "eglGetDisplay: unable to get EGL display");
+        ERROR_LOG(Log::G3D, "eglGetDisplay: unable to get EGL display");
         return false;
     }
 
     EGLint majorVersion;
     EGLint minorVersion;
     if (!eglInitialize(m_eglDisplay, &majorVersion, &minorVersion)) {
-       ERROR_LOG(G3D,
+       ERROR_LOG(Log::G3D,
             "eglInitialize: unable to get initialize EGL display");
         return false;
     }
@@ -95,7 +95,7 @@ bool OHOSOpenEGLGraphicsContext::initializeEgl(void *wnd, int width, int height)
     const EGLint maxConfigSize = 1;
     EGLint numConfigs;
     if (!eglChooseConfig(m_eglDisplay, ATTRIB_LIST, &m_eglConfig, maxConfigSize, &numConfigs)) {
-        ERROR_LOG(G3D, "eglChooseConfig: unable to choose configs");
+        ERROR_LOG(Log::G3D, "eglChooseConfig: unable to choose configs");
         return false;
     }
     return CreateEnvironment();
@@ -104,9 +104,9 @@ bool OHOSOpenEGLGraphicsContext::InitFromRenderThread(void *wnd, int desiredBack
 	
     initializeEgl(wnd, 1170, 1170);
     
-    INFO_LOG(G3D, "OHOSOpenGLGraphicsContext::InitFromRenderThread");
+    INFO_LOG(Log::G3D, "OHOSOpenGLGraphicsContext::InitFromRenderThread");
 	if (!CheckGLExtensions()) {
-		ERROR_LOG(G3D, "CheckGLExtensions failed - not gonna attempt starting up.");
+		ERROR_LOG(Log::G3D, "CheckGLExtensions failed - not gonna attempt starting up.");
 		state_ = GraphicsContextState::FAILED_INIT;
 		return false;
 	}
@@ -129,7 +129,7 @@ bool OHOSOpenEGLGraphicsContext::InitFromRenderThread(void *wnd, int desiredBack
 }
 
 void OHOSOpenEGLGraphicsContext::ShutdownFromRenderThread() {
-	INFO_LOG(G3D, "OHOSOpenGLGraphicsContext::Shutdown");
+	INFO_LOG(Log::G3D, "OHOSOpenGLGraphicsContext::Shutdown");
 	renderManager_ = nullptr;  // owned by draw_.
 	delete draw_;
 	draw_ = nullptr;

@@ -49,12 +49,12 @@ struct Index {
     }
     if (command === "recreate") {
       let context = getContext(this) as common.Context;
-      setTimeout(()=>{
-        context.getApplicationContext().restartApp({
-          bundleName: 'com.xiaobai.ppsspp',
-          abilityName: 'EntryAbility'
-        })
-      }, 2000)
+      // setTimeout(()=>{
+      //   context.getApplicationContext().restartApp({
+      //     bundleName: 'com.xiaobai.ppsspp',
+      //     abilityName: 'EntryAbility'
+      //   })
+      // }, 2000)
     }
     if (command === "restart") {
       let context = getContext(this) as common.Context;
@@ -140,9 +140,9 @@ struct Index {
 
   onInit(){
     if(this.xComponentContext){
-      // this.xComponentContext?.onPostCommand((c,p)=>{ this.processCommand(c,p) })
-      // this.checkDisplayParameters();
-      // const context = getContext(this);
+      this.xComponentContext?.onPostCommand((c,p)=>{ this.processCommand(c,p) })
+      this.checkDisplayParameters();
+      const context = getContext(this);
       //this.xComponentContext.native_init(context.resourceDir, context.filesDir, context.cacheDir)
     }
   }

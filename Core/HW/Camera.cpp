@@ -285,6 +285,7 @@ void *v4l_loop(void *data) {
 	}
 	return nullptr;
 #endif //USE_FFMPEG
+	return nullptr;
 }
 
 int __v4l_startCapture(int ideal_width, int ideal_height) {

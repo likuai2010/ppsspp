@@ -20,8 +20,8 @@
 #include "System/Display.h"
 #include "System/Request.h"
 #include "TimeUtil.h"
-#include "ohos/OHOSAudio.h"
-#include "ohos/ohos-log.h"
+#include "ohos/cpp/OHOSAudio.h"
+#include "ohos/cpp/ohos-log.h"
 
 #include "Common/Log.h"
 #include "Common/LogReporting.h"
@@ -50,8 +50,8 @@
 #include "Core/HLE/sceUsbCam.h"
 #include "Common/CPUDetect.h"
 #include "Common/Log.h"
-#include "ohos/OHOSOpenGLContext.h"
-#include "ohos/OHOSVulkanContext.h"
+#include "ohos/cpp/OHOSOpenGLContext.h"
+#include "ohos/cpp/OHOSVulkanContext.h"
 
 // Need to use raw Android logging before NativeInit.
 #define EARLY_LOG(...)  Hi(H, "PPSSPP", __VA_ARGS__)
@@ -106,8 +106,8 @@ static int deviceType;
 // Exposed so it can be displayed on the touchscreen test.
 static int display_xres;
 static int display_yres;
-static int display_dpi_x;
-static int display_dpi_y;
+static int display_dpi;
+static float display_scale;
 static int backbuffer_format;	// Android PixelFormat enum
 
 static int desiredBackbufferSizeX;
@@ -154,45 +154,45 @@ bool canJit(){
     }
 }
 
-void OHOSLogger::Log(const LogMessage &message)  {
-    OHOS::LogLevel mode;
-    switch (message.level) {
-    case LogLevel::LWARNING:
-        mode = OHOS::LOG_WARN;
-        break;
-    case LogLevel::LERROR:
-        mode =  OHOS::LOG_ERROR;
-        break;
-    default:
-        mode = OHOS::LOG_INFO;
-        break;
-    }
-
-    // Long log messages need splitting up.
-    // Not sure what the actual limit is (seems to vary), but let's be conservative.
-    const size_t maxLogLength = 512;
-    if (message.msg.length() < maxLogLength) {
-        // Log with simplified headers as Android already provides timestamp etc.
-        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log, message.msg.c_str());
-    } else {
-        std::string msg = message.msg;
-
-        // Ideally we should split at line breaks, but it's at least fairly usable anyway.
-        std::string first_part = msg.substr(0, maxLogLength);
-        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log,
-                           first_part.c_str());
-        msg = msg.substr(maxLogLength);
-
-        while (msg.length() > maxLogLength) {
-            std::string first_part = msg.substr(0, maxLogLength);
-            OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s",
-                               first_part.c_str());
-            msg = msg.substr(maxLogLength);
-        }
-        // Print the final part.
-        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s", msg.c_str());
-    }
-}
+//void OHOSLogger::Log(const LogMessage &message)  {
+//    OHOS::LogLevel mode;
+//    switch (message.level) {
+//    case LogLevel::LWARNING:
+//        mode = OHOS::LOG_WARN;
+//        break;
+//    case LogLevel::LERROR:
+//        mode =  OHOS::LOG_ERROR;
+//        break;
+//    default:
+//        mode = OHOS::LOG_INFO;
+//        break;
+//    }
+//
+//    // Long log messages need splitting up.
+//    // Not sure what the actual limit is (seems to vary), but let's be conservative.
+//    const size_t maxLogLength = 512;
+//    if (message.msg.length() < maxLogLength) {
+//        // Log with simplified headers as Android already provides timestamp etc.
+//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log, message.msg.c_str());
+//    } else {
+//        std::string msg = message.msg;
+//
+//        // Ideally we should split at line breaks, but it's at least fairly usable anyway.
+//        std::string first_part = msg.substr(0, maxLogLength);
+//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log,
+//                           first_part.c_str());
+//        msg = msg.substr(maxLogLength);
+//
+//        while (msg.length() > maxLogLength) {
+//            std::string first_part = msg.substr(0, maxLogLength);
+//            OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s",
+//                               first_part.c_str());
+//            msg = msg.substr(maxLogLength);
+//        }
+//        // Print the final part.
+//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s", msg.c_str());
+//    }
+//}
 
 
 static OHOSGraphicsContext *graphicsContext;
@@ -205,7 +205,7 @@ static void ProcessFrameCommands() {
 	while (!frameCommands.empty()) {
 		FrameCommand frameCmd;
 		frameCmd = frameCommands.front();
-		INFO_LOG(SYSTEM, "frameCommand '%s' '%s'", frameCmd.command.c_str(), frameCmd.params.c_str());
+		INFO_LOG(Log::System, "frameCommand '%s' '%s'", frameCmd.command.c_str(), frameCmd.params.c_str());
         frameCommands.pop();
         FrameCommand* thread_data = (FrameCommand*)malloc(sizeof(FrameCommand));
         memcpy(&thread_data->command, &frameCmd.command, frameCmd.command.size() + 1);
@@ -237,43 +237,50 @@ static napi_value onPostCommand(napi_env env, napi_callback_info info) {
 }
 
 static void recalculateDpi() {
-	g_display.dpi = display_dpi_x;
-	g_display.dpi_scale_x = 240.0f / display_dpi_x;
-	g_display.dpi_scale_y = 240.0f / display_dpi_y;
-	g_display.dpi_scale_real_x = g_display.dpi_scale_x;
-	g_display.dpi_scale_real_y = g_display.dpi_scale_y;
+	
+	int old_w = g_display.pixel_xres;
+	int old_h = g_display.pixel_yres;
 
-	g_display.dp_xres = display_xres * g_display.dpi_scale_x;
-	g_display.dp_yres = display_yres * g_display.dpi_scale_y;
-
-	g_display.pixel_in_dps_x = (float)g_display.pixel_xres / g_display.dp_xres;
-	g_display.pixel_in_dps_y = (float)g_display.pixel_yres / g_display.dp_yres;
-
-	INFO_LOG(G3D, "RecalcDPI: display_xres=%d display_yres=%d pixel_xres=%d pixel_yres=%d", display_xres, display_yres, g_display.pixel_xres, g_display.pixel_yres);
-	INFO_LOG(G3D, "RecalcDPI: g_dpi=%f g_dpi_scale_x=%f g_dpi_scale_y=%f dp_xres=%d dp_yres=%d", g_display.dpi, g_display.dpi_scale_x, g_display.dpi_scale_y, g_display.dp_xres, g_display.dp_yres);
+	// pixel_*res is the backbuffer resolution.
+	//backbuffer_format = format;
+//	if (IsVREnabled()) {
+//		GetVRResolutionPerEye(&pixel_xres, &pixel_yres);
+//	}
+	// Compute display scale factor. Always < 1.0f (well, as long as we use buffers sized smaller than the screen...)
+	display_scale = (float)display_xres / (float)display_xres;
+	float dpi = (1.0f / display_scale) * (240.0f / (float)display_dpi);
+	bool new_size = g_display.Recalculate(display_xres, display_yres, dpi, UIScaleFactorToMultiplier(g_Config.iUIScaleFactor));
+	
+	INFO_LOG(Log::G3D, "RecalcDPI: display_xres=%d display_yres=%d pixel_xres=%d pixel_yres=%d", display_xres, display_yres, g_display.pixel_xres, g_display.pixel_yres);
+	INFO_LOG(Log::G3D, "RecalcDPI: g_dpi=%d scaled_dpi=%f display_scale=%f g_dpi_scale=%f dp_xres=%d dp_yres=%d", display_dpi, dpi, display_scale, g_display.dpi_scale, g_display.dp_xres, g_display.dp_yres);
+	if (new_size) {
+		INFO_LOG(Log::G3D, "Size change detected (previously %d,%d) - calling NativeResized()", old_w, old_h);
+		NativeResized();
+	} else {
+		INFO_LOG(Log::G3D, "NativeApp::backbufferResize: Size didn't change.");
+	}
 }
 
 static int refreshRate;
 static double displayDpi;
 void setDisplayParameters(int xres, int yres){
    
-    INFO_LOG(G3D, "NativeApp.setDisplayParameters(%d x %d, dpi=%d, refresh=%0.2f)", xres, yres, displayDpi, refreshRate);
+    INFO_LOG(Log::G3D, "NativeApp.setDisplayParameters(%d x %d, dpi=%d, refresh=%0.2f)", xres, yres, displayDpi, refreshRate);
     bool changed = false;
 	changed = changed || display_xres != xres || display_yres != yres;
-	changed = changed || display_dpi_x != displayDpi || display_dpi_y != displayDpi;
+	changed = changed || display_dpi != displayDpi || display_dpi != displayDpi;
 	changed = changed || g_display.display_hz != refreshRate;
 	if (changed) {
 		display_xres = xres;
 		display_yres = yres;
-		display_dpi_x = displayDpi;
-		display_dpi_y = displayDpi;
+		display_dpi = displayDpi;
 		g_display.display_hz = refreshRate;
 		recalculateDpi();
 		NativeResized();
 	}
 }
 void backbufferResize(int bufw, int bufh, int format){
-    INFO_LOG(SYSTEM, "NativeApp.backbufferResize(%d x %d)", bufw, bufh);
+    INFO_LOG(Log::System, "NativeApp.backbufferResize(%d x %d)", bufw, bufh);
 
 	bool new_size = g_display.pixel_xres != bufw || g_display.pixel_yres != bufh;
 	int old_w = g_display.pixel_xres;
@@ -286,10 +293,10 @@ void backbufferResize(int bufw, int bufh, int format){
 	recalculateDpi();
 
 	if (new_size) {
-		INFO_LOG(G3D, "Size change detected (previously %d,%d) - calling NativeResized()", old_w, old_h);
+		INFO_LOG(Log::G3D, "Size change detected (previously %d,%d) - calling NativeResized()", old_w, old_h);
 		NativeResized();
 	} else {
-		INFO_LOG(G3D, "NativeApp::backbufferResize: Size didn't change.");
+		INFO_LOG(Log::G3D, "NativeApp::backbufferResize: Size didn't change.");
 	}
 }
 
@@ -297,15 +304,15 @@ void backbufferResize(int bufw, int bufh, int format){
 // Only used in OpenGL mode.
 static void EmuThreadFunc(napi_env env) {
 	SetCurrentThreadName("EmuThread");
-    INFO_LOG(SYSTEM, "Entering emu thread");
+    INFO_LOG(Log::System, "Entering emu thread");
     // Wait for render loop to get started.
-    INFO_LOG(SYSTEM, "Runloop: Waiting for displayInit...");
+    INFO_LOG(Log::System, "Runloop: Waiting for displayInit...");
 	while (!graphicsContext || graphicsContext->GetState() == GraphicsContextState::PENDING) {
-		sleep_ms(5);
+		sleep(5);
 	}
     // Check the state of the graphics context before we try to feed it into NativeInitGraphics.
     if (graphicsContext->GetState() != GraphicsContextState::INITIALIZED) {
-        ERROR_LOG(G3D, "Failed to initialize the graphics context! %d", (int)graphicsContext->GetState());
+        ERROR_LOG(Log::G3D, "Failed to initialize the graphics context! %d", (int)graphicsContext->GetState());
         emuThreadState = (int)EmuThreadState::QUIT_REQUESTED;
         return;
     }
@@ -315,7 +322,7 @@ static void EmuThreadFunc(napi_env env) {
         emuThreadState = (int)EmuThreadState::QUIT_REQUESTED;
         return;
     }
-    INFO_LOG(SYSTEM, "Graphics initialized. Entering loop.");
+    INFO_LOG(Log::System, "Graphics initialized. Entering loop.");
     
     // There's no real requirement that NativeInit happen on this thread.
     // We just call the update/render loop here.
@@ -329,16 +336,16 @@ static void EmuThreadFunc(napi_env env) {
         ProcessFrameCommands();
     }
     
-    INFO_LOG(SYSTEM, "QUIT_REQUESTED found, left EmuThreadFunc loop. Setting state to STOPPED.");
+    INFO_LOG(Log::System, "QUIT_REQUESTED found, left EmuThreadFunc loop. Setting state to STOPPED.");
     emuThreadState = (int)EmuThreadState::STOPPED;
     NativeShutdownGraphics();
     // Also ask the main thread to stop, so it doesn't hang waiting for a new frame.
     graphicsContext->StopThread();
-    INFO_LOG(SYSTEM, "Leaving emu thread");
+    INFO_LOG(Log::System, "Leaving emu thread");
 }
 
 static void EmuThreadStart(napi_env env) {
-	INFO_LOG(SYSTEM, "EmuThreadStart");
+	INFO_LOG(Log::System, "EmuThreadStart");
 	emuThreadState = (int)EmuThreadState::START_REQUESTED;
 	emuThread = std::thread(&EmuThreadFunc, env);
 }
@@ -347,8 +354,8 @@ static void EmuThreadStart(napi_env env) {
 void touchHandle(float x, float y, int code, int pointerId){
     TouchInput touch;
     touch.id = pointerId;
-    touch.x = x * g_display.dpi_scale_x;
-    touch.y = y * g_display.dpi_scale_y;
+    touch.x = x * g_display.dpi_scale;
+    touch.y = y * g_display.dpi_scale;
     touch.flags = code;
     NativeTouch(touch);
 }
@@ -367,13 +374,13 @@ struct BridgeCallbackInfo {
 void VulkanEmuThread(void *wnd){
     SetCurrentThreadName("EmuThread");
 	if (!graphicsContext) {
-		ERROR_LOG(G3D, "runVulkanRenderLoop: Tried to enter without a created graphics context.");
+		ERROR_LOG(Log::G3D, "runVulkanRenderLoop: Tried to enter without a created graphics context.");
 		renderLoopRunning = false;
 		exitRenderLoop = false;
 		return;
 	}
 	if (exitRenderLoop) {
-		WARN_LOG(G3D, "runVulkanRenderLoop: ExitRenderLoop requested at start, skipping the whole thing.");
+		WARN_LOG(Log::G3D, "runVulkanRenderLoop: ExitRenderLoop requested at start, skipping the whole thing.");
 		renderLoopRunning = false;
 		exitRenderLoop = false;
 		return;
@@ -381,14 +388,14 @@ void VulkanEmuThread(void *wnd){
 	// This is up here to prevent race conditions, in case we pause during init.
 	renderLoopRunning = true;
 
-	WARN_LOG(G3D, "runVulkanRenderLoop. display_xres=%d display_yres=%d desiredBackbufferSizeX=%d desiredBackbufferSizeY=%d",
+	WARN_LOG(Log::G3D, "runVulkanRenderLoop. display_xres=%d display_yres=%d desiredBackbufferSizeX=%d desiredBackbufferSizeY=%d",
 		display_xres, display_yres, desiredBackbufferSizeX, desiredBackbufferSizeY);
 
 	if (!graphicsContext->InitFromRenderThread(wnd, desiredBackbufferSizeX, desiredBackbufferSizeY, backbuffer_format, apiVersion)) {
 		// On Android, if we get here, really no point in continuing.
 		// The UI is supposed to render on any device both on OpenGL and Vulkan. If either of those don't work
 		// on a device, we blacklist it. Hopefully we should have already failed in InitAPI anyway and reverted to GL back then.
-		ERROR_LOG(G3D, "Failed to initialize graphics context.");
+		ERROR_LOG(Log::G3D, "Failed to initialize graphics context.");
 		System_Toast("Failed to initialize graphics context.");
 
 		delete graphicsContext;
@@ -399,7 +406,7 @@ void VulkanEmuThread(void *wnd){
 
 	if (!exitRenderLoop) {
         if (!useCPUThread && !NativeInitGraphics(graphicsContext)) {
-            ERROR_LOG(G3D, "Failed to initialize graphics.");
+            ERROR_LOG(Log::G3D, "Failed to initialize graphics.");
             // Gonna be in a weird state here..
         }
 		graphicsContext->ThreadStart();
@@ -421,9 +428,9 @@ void VulkanEmuThread(void *wnd){
 			}
 			
 		}
-		INFO_LOG(G3D, "Leaving Vulkan main loop.");
+		INFO_LOG(Log::G3D, "Leaving Vulkan main loop.");
 	} else {
-		INFO_LOG(G3D, "Not entering main loop.");
+		INFO_LOG(Log::G3D, "Not entering main loop.");
 	}
 
 	NativeShutdownGraphics();
@@ -432,12 +439,12 @@ void VulkanEmuThread(void *wnd){
 	graphicsContext->ThreadEnd();
 
 	// Shut the graphics context down to the same state it was in when we entered the render thread.
-	INFO_LOG(G3D, "Shutting down graphics context...");
+	INFO_LOG(Log::G3D, "Shutting down graphics context...");
 	graphicsContext->ShutdownFromRenderThread();
 	renderLoopRunning = false;
 	exitRenderLoop = false;
 
-	WARN_LOG(G3D, "Render loop function exited.");
+	WARN_LOG(Log::G3D, "Render loop function exited.");
 }
 
 
@@ -445,7 +452,7 @@ void VulkanEmuThread(void *wnd){
 void DisplayRender(void * window) {
     if(renderer_inited)
         return ;
-    INFO_LOG(G3D, "Starting Vulkan submission thread");
+    INFO_LOG(Log::G3D, "Starting Vulkan submission thread");
     g_Config.bRenderMultiThreading = true;
     vulkanEmuThread = std::thread(&VulkanEmuThread, window);
 }
@@ -457,14 +464,14 @@ void DisplayRender(void * window) {
 // as long as emuThreadState isn't STOPPED and/or there are still things queued up.
 // Only after that, call EmuThreadJoin.
 static void EmuThreadStop(const char *caller) {
-	INFO_LOG(SYSTEM, "EmuThreadStop - stopping (%s)...", caller);
+	INFO_LOG(Log::System, "EmuThreadStop - stopping (%s)...", caller);
 	emuThreadState = (int)EmuThreadState::QUIT_REQUESTED;
 }
 
 static void EmuThreadJoin() {
 	emuThread.join();
 	emuThread = std::thread();
-	INFO_LOG(SYSTEM, "EmuThreadJoin - joined");
+	INFO_LOG(Log::System, "EmuThreadJoin - joined");
 }
 
 static void PushCommand(std::string cmd, std::string param) {
@@ -546,7 +553,7 @@ int64_t System_GetPropertyInt(SystemProperty prop) {
 static std::string QueryConfig(std::string query) {
 	char temp[128];
 	if (query == "screenRotation") {
-		INFO_LOG(G3D, "g_Config.screenRotation = %d", g_Config.iScreenRotation);
+		INFO_LOG(Log::G3D, "g_Config.screenRotation = %d", g_Config.iScreenRotation);
 		snprintf(temp, sizeof(temp), "%d", g_Config.iScreenRotation);
 		return std::string(temp);
 	} else if (query == "immersiveMode") {
@@ -642,7 +649,7 @@ void correctRatio(int &sz_x, int &sz_y, float scale) {
 	float x = (float)sz_x;
 	float y = (float)sz_y;
 	float ratio = x / y;
-	INFO_LOG(G3D, "CorrectRatio: Considering size: %0.2f/%0.2f=%0.2f for scale %f", x, y, ratio, scale);
+	INFO_LOG(Log::G3D, "CorrectRatio: Considering size: %0.2f/%0.2f=%0.2f for scale %f", x, y, ratio, scale);
 	float targetRatio;
 
 	// Try to get the longest dimension to match scale*PSP resolution.
@@ -657,7 +664,7 @@ void correctRatio(int &sz_x, int &sz_y, float scale) {
 	}
 
 	float correction = targetRatio / ratio;
-	INFO_LOG(G3D, "Target ratio: %0.2f ratio: %0.2f correction: %0.2f", targetRatio, ratio, correction);
+	INFO_LOG(Log::G3D, "Target ratio: %0.2f ratio: %0.2f correction: %0.2f", targetRatio, ratio, correction);
 	if (ratio < targetRatio) {
 		y *= correction;
 	} else {
@@ -666,7 +673,7 @@ void correctRatio(int &sz_x, int &sz_y, float scale) {
 
 	sz_x = x;
 	sz_y = y;
-	INFO_LOG(G3D, "Corrected ratio: %dx%d", sz_x, sz_y);
+	INFO_LOG(Log::G3D, "Corrected ratio: %dx%d", sz_x, sz_y);
 }
 
 void getDesiredBackbufferSize(int &sz_x, int &sz_y) {
@@ -707,7 +714,7 @@ napi_value audioInit(napi_env env, napi_callback_info info);
 
 napi_value Native_Init(napi_env env, napi_callback_info info)
 {
-    DEBUG_LOG(SYSTEM, "NativeApp.init() -- begin");
+    DEBUG_LOG(Log::System, "NativeApp.init() -- begin");
     std::lock_guard<std::mutex> guard(renderLock);
 	renderer_inited = false;
 	exitRenderLoop = false;
@@ -718,7 +725,7 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     g_VFS.Register("", new DirectoryReader(assetsPath));
     systemName = "HarmonyOS Next";
 	langRegion = "CN";
-  	DEBUG_LOG(SYSTEM, "NativeApp.init(): device name: '%s'", systemName.c_str());
+  	DEBUG_LOG(Log::System, "NativeApp.init(): device name: '%s'", systemName.c_str());
     
     std::string externalStorageDir = "/data/storage/el1/bundle/entry/resources/resfile";
 	std::string additionalStorageDirsString = "";
@@ -747,7 +754,7 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     std::vector<std::string> temp;
     args.push_back(app_name.c_str());
     if (!shortcut_param.empty()) {
-		DEBUG_LOG(SYSTEM, "NativeInit shortcut param %s", shortcut_param.c_str());
+		DEBUG_LOG(Log::System, "NativeInit shortcut param %s", shortcut_param.c_str());
 		parse_args(temp, shortcut_param);
 		for (const auto &arg : temp) {
 			args.push_back(arg.c_str());
@@ -770,20 +777,20 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     	switch (g_Config.iGPUBackend) {
     	case (int)GPUBackend::OPENGL:
     		useCPUThread = true;
-    		INFO_LOG(SYSTEM, "NativeApp.init() -- creating OpenGL context (EGL)");
+    		INFO_LOG(Log::System, "NativeApp.init() -- creating OpenGL context (EGL)");
     		graphicsContext = new OHOSOpenEGLGraphicsContext();
-    		INFO_LOG(SYSTEM, "NativeApp.init() - launching emu thread");
+    		INFO_LOG(Log::System, "NativeApp.init() - launching emu thread");
     		EmuThreadStart(env);
     		break;
     	case (int)GPUBackend::VULKAN:
     	{
-    		INFO_LOG(SYSTEM, "NativeApp.init() -- creating Vulkan context");
+    		INFO_LOG(Log::System, "NativeApp.init() -- creating Vulkan context");
     		useCPUThread = false;
     		// The Vulkan render manager manages its own thread.
     		// We create and destroy the Vulkan graphics context in the app main thread though.
     		OHOSVulkanContext *ctx = new OHOSVulkanContext();
     		if (!ctx->InitAPI()) {
-    			INFO_LOG(SYSTEM, "Failed to initialize Vulkan, switching to OpenGL");
+    			INFO_LOG(Log::System, "Failed to initialize Vulkan, switching to OpenGL");
     			g_Config.iGPUBackend = (int)GPUBackend::OPENGL;
     			SetGPUBackend(GPUBackend::OPENGL);
     			goto retry;
@@ -793,7 +800,7 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     		break;
     	}
     	default:
-    		ERROR_LOG(SYSTEM, "NativeApp.init(): iGPUBackend %d not supported. Switching to OpenGL.", (int)g_Config.iGPUBackend);
+    		ERROR_LOG(Log::System, "NativeApp.init(): iGPUBackend %d not supported. Switching to OpenGL.", (int)g_Config.iGPUBackend);
     		g_Config.iGPUBackend = (int)GPUBackend::OPENGL;
     		goto retry;
     	}
@@ -914,13 +921,13 @@ float System_GetPropertyFloat(SystemProperty prop) {
     case SYSPROP_DISPLAY_REFRESH_RATE:
         return g_display.display_hz;
     case SYSPROP_DISPLAY_SAFE_INSET_LEFT:
-        return g_safeInsetLeft;
+        return g_safeInsetLeft * display_scale * g_display.dpi_scale;
     case SYSPROP_DISPLAY_SAFE_INSET_RIGHT:
-        return g_safeInsetRight;
+        return g_safeInsetRight * display_scale * g_display.dpi_scale;
     case SYSPROP_DISPLAY_SAFE_INSET_TOP:
-        return g_safeInsetTop;
+        return g_safeInsetTop * display_scale * g_display.dpi_scale;
     case SYSPROP_DISPLAY_SAFE_INSET_BOTTOM:
-        return g_safeInsetBottom;
+        return g_safeInsetBottom * display_scale * g_display.dpi_scale;
     default:
         return -1;
     }
@@ -1042,14 +1049,14 @@ static napi_value sendMessage(napi_env env, napi_callback_info info){
     char *prm = (char *)malloc(length + 1);
     napi_get_value_string_utf8(env, params[1], prm, length + 1, NULL);
     if (strcmp(msg, "safe_insets")) {
-		INFO_LOG(SYSTEM, "Got insets: %s", prm);
+		INFO_LOG(Log::System, "Got insets: %s", prm);
 		// We don't bother with supporting exact rectangular regions. Safe insets are good enough.
 		int left, right, top, bottom;
 		if (4 == sscanf(prm, "%d:%d:%d:%d", &left, &right, &top, &bottom)) {
-			g_safeInsetLeft = (float)left * g_display.dpi_scale_x;
-			g_safeInsetRight = (float)right * g_display.dpi_scale_x;
-			g_safeInsetTop = (float)top * g_display.dpi_scale_y;
-			g_safeInsetBottom = (float)bottom * g_display.dpi_scale_y;
+			g_safeInsetLeft = (float)left;
+			g_safeInsetRight = (float)right;
+			g_safeInsetTop = (float)top;
+			g_safeInsetBottom = (float)bottom;
 		}
 	}
     return nullptr;
@@ -1213,8 +1220,8 @@ static napi_value mouse(napi_env env, napi_callback_info info) {
 	} else {
 		last_y = y;
 	}
-    x *= g_display.dpi_scale_x;
-	y *= g_display.dpi_scale_y;
+    x *= g_display.dpi_scale;
+	y *= g_display.dpi_scale;
     if (button == 0) {
 		// It's a pure mouse move.
 		input.flags = TOUCH_MOUSE | TOUCH_MOVE;
@@ -1235,7 +1242,7 @@ static napi_value mouse(napi_env env, napi_callback_info info) {
 		}
 		input.id = 0;
 	}
-	INFO_LOG(SYSTEM, "New-style mouse event: %f %f %d %d -> x: %f y: %f buttons: %d flags: %04x", x, y, button, action, input.x, input.y,  input.flags);
+	INFO_LOG(Log::System, "New-style mouse event: %f %f %d %d -> x: %f y: %f buttons: %d flags: %04x", x, y, button, action, input.x, input.y,  input.flags);
 	NativeTouch(input);
     if (button) {
 		KeyInput input{};
@@ -1244,7 +1251,7 @@ static napi_value mouse(napi_env env, napi_callback_info info) {
 		case 1: input.keyCode = NKCODE_EXT_MOUSEBUTTON_1; break;
 		case 2: input.keyCode = NKCODE_EXT_MOUSEBUTTON_2; break;
 		case 3: input.keyCode = NKCODE_EXT_MOUSEBUTTON_3; break;
-		default: WARN_LOG(SYSTEM, "Unexpected mouse button %d", button);
+		default: WARN_LOG(Log::System, "Unexpected mouse button %d", button);
 		}
 		input.flags = action == 1 ? KEY_DOWN : KEY_UP;
 		if (input.keyCode != 0) {
@@ -1329,11 +1336,11 @@ napi_value audioInit(napi_env env, napi_callback_info info) {
 		framesPerBuffer = 512;
 		sampleRate = 44100;
 	}
-    INFO_LOG(AUDIO, "NativeApp.audioInit() -- Using OpenSL audio! frames/buffer: %i	 optimal sr: %i	 actual sr: %i", optimalFramesPerBuffer, optimalSampleRate, sampleRate);
+    INFO_LOG(Log::Audio, "NativeApp.audioInit() -- Using OpenSL audio! frames/buffer: %i	 optimal sr: %i	 actual sr: %i", optimalFramesPerBuffer, optimalSampleRate, sampleRate);
 	if (!g_audioState) {
 		g_audioState = OHOSAudio_Init(&NativeMix, framesPerBuffer, sampleRate);
 	} else {
-		ERROR_LOG(AUDIO, "Audio state already initialized");
+		ERROR_LOG(Log::Audio, "Audio state already initialized");
 	}
     OHOSAudio_Resume(g_audioState);
     napi_value jsResult;
@@ -1344,8 +1351,9 @@ static napi_value audioShutdown(napi_env env, napi_callback_info info) {
 		OHOSAudio_Shutdown(g_audioState);
 		g_audioState = nullptr;
 	} else {
-		ERROR_LOG(AUDIO, "Audio state already shutdown!");
+		ERROR_LOG(Log::Audio, "Audio state already shutdown!");
 	}
+	return nullptr;
 }
 static napi_value audioRecording_1SetSampleRate(napi_env env, napi_callback_info info) {
 	OHOSAudio_Recording_SetSampleRate(g_audioState, sampleRate);
@@ -1385,6 +1393,6 @@ void ExportApi(napi_env env, napi_value exports){
         { "isAtTopLevel", nullptr, isAtTopLevel, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_ok != napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc)) {
-        ERROR_LOG(SYSTEM, "Export: napi_define_properties failed");
+        ERROR_LOG(Log::System, "Export: napi_define_properties failed");
     }
 }

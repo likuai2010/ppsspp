@@ -23,6 +23,10 @@
 
 #endif
 
+#if PPSSPP_PLATFORM(OHOS)
+#include "ohos/cpp/ohos-log.h"
+#endif
+
 #include <algorithm>
 #include <cstring>
 
@@ -424,6 +428,20 @@ void LogManager::StdioLog(const LogMessage &message) {
 		// Print the final part.
 		__android_log_print(mode, LOG_APP_NAME, "%.*s", (int)msg.size(), msg.data());
 	}
+#elif PPSSPP_PLATFORM(OHOS)
+		int mode;
+		switch (message.level) {
+		case LogLevel::LWARNING:
+			mode = OHOS::LOG_WARN;
+			break;
+		case LogLevel::LERROR:
+			mode = OHOS::LOG_ERROR;
+			break;
+		default:
+			mode = OHOS::LOG_INFO;
+			break;
+		}
+        OHOS::OH_LOG_Print(OHOS::LOG_APP, OHOS:: LOG_INFO, 0xFF00, "PPSSPP", "EARLY: %{public}s", message.msg.c_str());
 #else
 	std::lock_guard<std::mutex> lock(stdioLock_);
 	char text[2048];

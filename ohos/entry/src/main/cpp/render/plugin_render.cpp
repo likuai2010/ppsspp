@@ -21,6 +21,7 @@
 #include "plugin_render.h"
 #include "../manager/plugin_manager.h"
 #include "../commons/common.h"
+#include "ohos/cpp/app-ohos.h"
 
 // #include "ppsspp/ohos/app-ohos.h"
 std::unordered_map<std::string, PluginRender *> PluginRender::m_instance;

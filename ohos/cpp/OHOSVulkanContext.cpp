@@ -18,15 +18,18 @@ static const bool g_Validate = false;
 #endif
 
 // TODO: Share this between backends.
-static uint32_t FlagsFromConfig() {
-	uint32_t flags;
+static VulkanInitFlags FlagsFromConfig() {
+	VulkanInitFlags flags;
 	if (g_Config.bVSync) {
-		flags = VULKAN_FLAG_PRESENT_FIFO;
+		flags = VulkanInitFlags::PRESENT_FIFO;
 	} else {
-		flags = VULKAN_FLAG_PRESENT_MAILBOX | VULKAN_FLAG_PRESENT_IMMEDIATE;
+		flags = VulkanInitFlags::PRESENT_MAILBOX | VulkanInitFlags::PRESENT_IMMEDIATE;
 	}
 	if (g_Validate) {
-		flags |= VULKAN_FLAG_VALIDATE;
+		flags |= VulkanInitFlags::VALIDATE;
+	}
+	if (g_Config.bVulkanDisableImplicitLayers) {
+		flags |= VulkanInitFlags::DISABLE_IMPLICIT_LAYERS;
 	}
 	return flags;
 }
@@ -39,19 +42,19 @@ OHOSVulkanContext::~OHOSVulkanContext() {
 }
 
 bool OHOSVulkanContext::InitAPI() {
-    INFO_LOG(G3D, "OHOSVulkanContext::Init");
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::Init");
     init_glslang();
 
     g_LogOptions.breakOnError = true;
     g_LogOptions.breakOnWarning = true;
     g_LogOptions.msgBoxOnError = false;
 
-    INFO_LOG(G3D, "Creating Vulkan context");
+    INFO_LOG(Log::G3D, "Creating Vulkan context");
     Version gitVer(PPSSPP_GIT_VERSION);
 
     std::string errorStr;
     if (!VulkanLoad(&errorStr)) {
-        ERROR_LOG(G3D, "Failed to load Vulkan driver library: %s", errorStr.c_str());
+        ERROR_LOG(Log::G3D, "Failed to load Vulkan driver library: %s", errorStr.c_str());
         state_ = GraphicsContextState::FAILED_INIT;
         return false;
     }
@@ -72,22 +75,22 @@ bool OHOSVulkanContext::InitAPI() {
         return false;
     }
 
-    INFO_LOG(G3D, "Vulkan device created!");
+    INFO_LOG(Log::G3D, "Vulkan device created!");
     state_ = GraphicsContextState::INITIALIZED;
     return true;
 }
 
 bool OHOSVulkanContext::InitFromRenderThread(void *wnd, int desiredBackbufferSizeX, int desiredBackbufferSizeY, int backbufferFormat, int ohosVersion) {
-    INFO_LOG(G3D, "OHOSVulkanContext::InitFromRenderThread: desiredwidth=%d desiredheight=%d",
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::InitFromRenderThread: desiredwidth=%d desiredheight=%d",
              desiredBackbufferSizeX, desiredBackbufferSizeY);
     if (!g_Vulkan) {
-        ERROR_LOG(G3D, "OHOSVulkanContext::InitFromRenderThread: No Vulkan context");
+        ERROR_LOG(Log::G3D, "OHOSVulkanContext::InitFromRenderThread: No Vulkan context");
         return false;
     }
 
     VkResult res = g_Vulkan->InitSurface(WINDOWSYSTEM_OHOS, (void *)wnd, nullptr);
     if (res != VK_SUCCESS) {
-        ERROR_LOG(G3D, "g_Vulkan->InitSurface failed: '%s'", VulkanResultToString(res));
+        ERROR_LOG(Log::G3D, "g_Vulkan->InitSurface failed: '%s'", VulkanResultToString(res));
         return false;
     }
 
@@ -112,7 +115,7 @@ bool OHOSVulkanContext::InitFromRenderThread(void *wnd, int desiredBackbufferSiz
         success = false;
     }
 
-    INFO_LOG(G3D, "OHOSVulkanContext::Init completed, %s", success ? "successfully" : "but failed");
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::Init completed, %s", success ? "successfully" : "but failed");
     if (!success) {
         g_Vulkan->DestroySwapchain();
         g_Vulkan->DestroySurface();
@@ -124,7 +127,7 @@ bool OHOSVulkanContext::InitFromRenderThread(void *wnd, int desiredBackbufferSiz
 }
 
 void OHOSVulkanContext::ShutdownFromRenderThread() {
-    INFO_LOG(G3D, "OHOSVulkanContext::Shutdown");
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::Shutdown");
     draw_->HandleEvent(Draw::Event::LOST_BACKBUFFER, g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
     delete draw_;
     draw_ = nullptr;
@@ -132,31 +135,31 @@ void OHOSVulkanContext::ShutdownFromRenderThread() {
     g_Vulkan->PerformPendingDeletes();
     g_Vulkan->DestroySwapchain();
     g_Vulkan->DestroySurface();
-    INFO_LOG(G3D, "Done with ShutdownFromRenderThread");
+    INFO_LOG(Log::G3D, "Done with ShutdownFromRenderThread");
 }
 
 void OHOSVulkanContext::Shutdown() {
-    INFO_LOG(G3D, "Calling NativeShutdownGraphics");
+    INFO_LOG(Log::G3D, "Calling NativeShutdownGraphics");
     g_Vulkan->DestroyDevice();
     g_Vulkan->DestroyInstance();
     // We keep the g_Vulkan context around to avoid invalidating a ton of pointers around the app.
     finalize_glslang();
-    INFO_LOG(G3D, "AndroidVulkanContext::Shutdown completed");
+    INFO_LOG(Log::G3D, "AndroidVulkanContext::Shutdown completed");
 }
 
 void OHOSVulkanContext::Resize() {
-    INFO_LOG(G3D, "OHOSVulkanContext::Resize begin (oldsize: %dx%d)", g_Vulkan->GetBackbufferWidth(),
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::Resize begin (oldsize: %dx%d)", g_Vulkan->GetBackbufferWidth(),
              g_Vulkan->GetBackbufferHeight());
 
     draw_->HandleEvent(Draw::Event::LOST_BACKBUFFER, g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
     g_Vulkan->DestroySwapchain();
     g_Vulkan->DestroySurface();
 
-    g_Vulkan->UpdateFlags(FlagsFromConfig());
+    g_Vulkan->UpdateInitFlags(FlagsFromConfig());
 
     g_Vulkan->ReinitSurface();
     g_Vulkan->InitSwapchain();
     draw_->HandleEvent(Draw::Event::GOT_BACKBUFFER, g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
-    INFO_LOG(G3D, "OHOSVulkanContext::Resize end (final size: %dx%d)", g_Vulkan->GetBackbufferWidth(),
+    INFO_LOG(Log::G3D, "OHOSVulkanContext::Resize end (final size: %dx%d)", g_Vulkan->GetBackbufferWidth(),
              g_Vulkan->GetBackbufferHeight());
 }

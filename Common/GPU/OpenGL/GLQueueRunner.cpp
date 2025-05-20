@@ -51,7 +51,7 @@ void GLQueueRunner::CreateDeviceObjects() {
 	}
 
 	if (gl_extensions.ARB_vertex_array_object) {
-		glGenVertexArrays(1, &globalVAO_);
+		gles3::glGenVertexArrays(1, &globalVAO_);
 	}
 
 	// An eternal optimist.
@@ -80,7 +80,7 @@ void GLQueueRunner::CreateDeviceObjects() {
 void GLQueueRunner::DestroyDeviceObjects() {
 	CHECK_GL_ERROR_IF_DEBUG();
 	if (gl_extensions.ARB_vertex_array_object) {
-		glDeleteVertexArrays(1, &globalVAO_);
+		gles3::glDeleteVertexArrays(1, &globalVAO_);
 	}
 	delete[] readbackBuffer_;
 	readbackBuffer_ = nullptr;
@@ -215,8 +215,8 @@ void GLQueueRunner::RunInitSteps(const FastVec<GLRInitStep> &steps, bool skipGLC
 			if (gl_extensions.GLES3 && step.create_program.support_dual_source) {
 				// For GLES2, we use gl_SecondaryFragColorEXT as fragColor1.
 				_dbg_assert_msg_(gl_extensions.EXT_blend_func_extended, "EXT_blend_func_extended required for dual src");
-				glBindFragDataLocationIndexedEXT(program->program, 0, 0, "fragColor0");
-				glBindFragDataLocationIndexedEXT(program->program, 0, 1, "fragColor1");
+				gles3::glBindFragDataLocationIndexedEXT(program->program, 0, 0, "fragColor0");
+				gles3::glBindFragDataLocationIndexedEXT(program->program, 0, 1, "fragColor1");
 			}
 #endif
 			glLinkProgram(program->program);
@@ -371,7 +371,7 @@ void GLQueueRunner::RunInitSteps(const FastVec<GLRInitStep> &steps, bool skipGLC
 						format, type, step.texture_image.data);
 				}
 			} else {
-				glTexImage3D(tex->target,
+				gles3::glTexImage3D(tex->target,
 					step.texture_image.level, internalFormat,
 					step.texture_image.width, step.texture_image.height, step.texture_image.depth, 0,
 					format, type, step.texture_image.data);
@@ -738,7 +738,7 @@ void GLQueueRunner::PerformBlit(const GLRStep &step) {
 	int dstY2 = step.blit.dstRect.y + step.blit.dstRect.h;
 
 	if (gl_extensions.GLES3 || gl_extensions.ARB_framebuffer_object) {
-		glBlitFramebuffer(srcX1, srcY1, srcX2, srcY2, dstX1, dstY1, dstX2, dstY2, step.blit.aspectMask, step.blit.filter ? GL_LINEAR : GL_NEAREST);
+		gles3::glBlitFramebuffer(srcX1, srcY1, srcX2, srcY2, dstX1, dstY1, dstX2, dstY2, step.blit.aspectMask, step.blit.filter ? GL_LINEAR : GL_NEAREST);
 		CHECK_GL_ERROR_IF_DEBUG();
 #if defined(USING_GLES2) && defined(__ANDROID__)  // We only support this extension on Android, it's not even available on PC.
 	} else if (gl_extensions.NV_framebuffer_blit) {
@@ -781,7 +781,7 @@ void GLQueueRunner::PerformRenderPass(const GLRStep &step, bool first, bool last
 		}
 #endif
 		if (gl_extensions.ARB_vertex_array_object) {
-			glBindVertexArray(globalVAO_);
+			gles3::glBindVertexArray(globalVAO_);
 		}
 	}
 
@@ -1056,10 +1056,10 @@ void GLQueueRunner::PerformRenderPass(const GLRStep &step, bool first, bool last
 			if (loc >= 0) {
 				_dbg_assert_(c.uniform4.count >=1 && c.uniform4.count <=4);
 				switch (c.uniform4.count) {
-				case 1: glUniform1uiv(loc, 1, (GLuint *)c.uniform4.v); break;
-				case 2: glUniform2uiv(loc, 1, (GLuint *)c.uniform4.v); break;
-				case 3: glUniform3uiv(loc, 1, (GLuint *)c.uniform4.v); break;
-				case 4: glUniform4uiv(loc, 1, (GLuint *)c.uniform4.v); break;
+				case 1: gles3::glUniform1uiv(loc, 1, (GLuint *)c.uniform4.v); break;
+				case 2: gles3::glUniform2uiv(loc, 1, (GLuint *)c.uniform4.v); break;
+				case 3: gles3::glUniform3uiv(loc, 1, (GLuint *)c.uniform4.v); break;
+				case 4: gles3::glUniform4uiv(loc, 1, (GLuint *)c.uniform4.v); break;
 				}
 			}
 			CHECK_GL_ERROR_IF_DEBUG();
@@ -1217,7 +1217,7 @@ void GLQueueRunner::PerformRenderPass(const GLRStep &step, bool first, bool last
 				if (c.draw.instances == 1) {
 					glDrawElements(c.draw.mode, c.draw.count, c.draw.indexType, (void *)(intptr_t)c.draw.indexOffset);
 				} else {
-					glDrawElementsInstanced(c.draw.mode, c.draw.count, c.draw.indexType, (void *)(intptr_t)c.draw.indexOffset, c.draw.instances);
+					gles3::glDrawElementsInstanced(c.draw.mode, c.draw.count, c.draw.indexType, (void *)(intptr_t)c.draw.indexOffset, c.draw.instances);
 				}
 			} else {
 				glDrawArrays(c.draw.mode, c.draw.first, c.draw.count);
@@ -1390,7 +1390,7 @@ void GLQueueRunner::PerformRenderPass(const GLRStep &step, bool first, bool last
 	if (curElemArrayBuffer != 0)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	if (last && gl_extensions.ARB_vertex_array_object) {
-		glBindVertexArray(0);
+		gles3::glBindVertexArray(0);
 	}
 	if (last)
 		glDisable(GL_SCISSOR_TEST);
@@ -1459,7 +1459,7 @@ void GLQueueRunner::PerformCopy(const GLRStep &step) {
 
 #if defined(USING_GLES2)
 #if !PPSSPP_PLATFORM(IOS)
-	glCopyImageSubDataOES(
+	gles3::glCopyImageSubDataOES(
 		srcTex, target, srcLevel, srcRect.x, srcRect.y, srcZ,
 		dstTex, target, dstLevel, dstPos.x, dstPos.y, dstZ,
 		srcRect.w, srcRect.h, depth);
@@ -1491,7 +1491,7 @@ void GLQueueRunner::PerformReadback(const GLRStep &pass) {
 
 	// Reads from the "bound for read" framebuffer. Note that if there's no fb, it's not valid to call this.
 	if (fb && (gl_extensions.GLES3 || !gl_extensions.IsGLES))
-		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		gles3::glReadBuffer(GL_COLOR_ATTACHMENT0);
 
 	CHECK_GL_ERROR_IF_DEBUG();
 

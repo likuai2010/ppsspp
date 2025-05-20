@@ -22,7 +22,7 @@
 
 #include "plugin_manager.h"
 #include "../commons/common.h"
-#include "ohos/app-ohos.h"
+#include "ohos/cpp/app-ohos.h"
 
 PluginManager PluginManager::m_pluginManager;
 
