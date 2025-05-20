@@ -148,3 +148,8 @@ RAPrefs_PPSSPP.cfg
 cmake-build-*/
 
 /.vscode/
+ohos/oh_modules
+ohos/.hvigor
+ohos/.clang-format
+ohos/.clang-tidy
+ohos/.clangd

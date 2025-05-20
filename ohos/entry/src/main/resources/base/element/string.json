@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "PPSSPP 模拟器"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "PPSSPP 模拟器"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "PPSSPP"
+    }
+  ]
+}

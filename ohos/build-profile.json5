@@ -1,0 +1,69 @@
+{
+	"app": {
+		"signingConfigs": [
+			{
+				"name": "default",
+				"type": "HarmonyOS",
+				"material": {
+					"certpath": "/Users/fiber/.ohos/config/default_ohos_RGMl3OIBM6JbqbL-kNE9GGopwfW5mPPcmIjGDuT2mic=.cer",
+					"keyAlias": "debugKey",
+					"keyPassword": "0000001BD227397D5FF12AC65372ED5FCCDCB41EC496729ACDE425FC759FDBE4AA2E5F8444284131F9A260",
+					"profile": "/Users/fiber/.ohos/config/default_ohos_RGMl3OIBM6JbqbL-kNE9GGopwfW5mPPcmIjGDuT2mic=.p7b",
+					"signAlg": "SHA256withECDSA",
+					"storeFile": "/Users/fiber/.ohos/config/default_ohos_RGMl3OIBM6JbqbL-kNE9GGopwfW5mPPcmIjGDuT2mic=.p12",
+					"storePassword": "0000001BDB812868A87251F705A49F558412B5D70C88428C78F67C0F42BEBD7E03BBCE92E9A88BBBD92088"
+				}
+			},
+			{
+				"name": "ppsspp",
+				"type": "HarmonyOS",
+				"material": {
+					"certpath": "G:/huawei/store/moonlight-prod.cer",
+					"storePassword": "00000018D3CF7E07DC570459A8D34FD3D7DB283BC1447224096F1F4A330C40B3A80FDD17770A781F",
+					"keyAlias": "moonlight",
+					"keyPassword": "00000018FEED41CE8A44891FF49C0169E1174A473557F9334532C57BA7EFA1E673BFE5A9DF9EE060",
+					"profile": "G:/huawei/store/ppssppRelease.p7b",
+					"signAlg": "SHA256withECDSA",
+					"storeFile": "G:/huawei/store/keystore.p12"
+				}
+			}
+		],
+		"products": [
+			{
+				"name": "default",
+				"signingConfig": "default",
+				"compatibleSdkVersion": "5.0.0(12)",
+				"runtimeOS": "HarmonyOS"
+			},
+			{
+				"name": "prod",
+				"signingConfig": "ppsspp",
+				"compatibleSdkVersion": "5.0.0(12)",
+				"runtimeOS": "HarmonyOS"
+			}
+		],
+		"buildModeSet": [
+			{
+				"name": "debug",
+			},
+			{
+				"name": "release"
+			}
+		]
+	},
+	"modules": [
+		{
+			"name": "entry",
+			"srcPath": "./entry",
+			"targets": [
+				{
+					"name": "default",
+					"applyToProducts": [
+						"default",
+						"prod"
+					]
+				}
+			]
+		}
+	]
+}

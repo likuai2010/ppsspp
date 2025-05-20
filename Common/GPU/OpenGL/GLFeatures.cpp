@@ -323,7 +323,7 @@ bool CheckGLExtensions() {
 		g_all_gl_extensions.clear();
 		g_set_gl_extensions.clear();
 		for (GLint i = 0; i < numExtensions; ++i) {
-			const char *ext = (const char *)glGetStringi(GL_EXTENSIONS, i);
+			const char *ext = (const char *)gles3::glGetStringi(GL_EXTENSIONS, i);
 			g_set_gl_extensions.insert(ext);
 			g_all_gl_extensions += ext;
 			g_all_gl_extensions += " ";

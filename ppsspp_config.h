@@ -114,6 +114,9 @@
 #elif defined(__ANDROID__)
     #define PPSSPP_PLATFORM_ANDROID 1
     #define PPSSPP_PLATFORM_LINUX 1
+#elif defined(__OHOS__)
+#define PPSSPP_PLATFORM_OHOS 1
+#define PPSSPP_PLATFORM_LINUX 1
 #elif defined(__linux__)
     #define PPSSPP_PLATFORM_LINUX 1
 #elif defined(__OpenBSD__)

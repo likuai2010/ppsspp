@@ -4,7 +4,7 @@ project(PPSSPP)
 enable_testing()
 
 #This is supposed to work but doesn't!
-if(NOT ANDROID)
+if(NOT ANDROID OR OHOS)
 	set(CMAKE_CXX_STANDARD 17)
 	set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
@@ -81,7 +81,7 @@ if(MINGW AND NOT USE_SYSTEM_FFMPEG)
 	set(USE_SYSTEM_FFMPEG ON)
 endif()
 
-if(NOT ANDROID AND NOT IOS)
+if(NOT ANDROID AND NOT OHOS AND NOT IOS)
 	if(ARM_DEVICE OR SIMULATOR)
 		set(USING_EGL ON)
 	endif()
@@ -106,6 +106,7 @@ if(ANDROID OR WIN32 OR (UNIX AND NOT ARM_NO_VULKAN))
 	set(VULKAN ON)
 endif()
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 # Default to bundled SDL2 on macOS, system SDL2 elsewhere.
 if(APPLE AND NOT IOS)
 	set(DEFAULT_USE_SYSTEM_LIBSDL2 OFF)
@@ -113,16 +114,15 @@ else()
 	set(DEFAULT_USE_SYSTEM_LIBSDL2 ON)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 if(NOT IOS)
 	list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/sdl)
 endif()
 
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
-
-add_compile_definitions(ASSETS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ppsspp/assets/")
-
+if(NOT OHOS)
+add_definitions(-DASSETS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ppsspp/assets/")
+endif()
 if(OPENXR AND NOT ARMV7_DEVICE)
 	add_compile_definitions(OPENXR)
 	add_subdirectory(ext/OpenXR-SDK)
@@ -174,8 +174,8 @@ option(SIMULATOR "Set to ON when targeting an x86 simulator of an ARM platform" 
 option(LIBRETRO "Set to ON to generate the libretro target" OFF)
 # :: Options
 option(USE_LIBNX "Set to ON to build for Switch(libnx)" OFF)
-option(USE_FFMPEG "Build with FFMPEG support" ON)
-option(USE_DISCORD "Build with Discord support" ON)
+option(USE_FFMPEG "Build with FFMPEG support" OFF)
+option(USE_DISCORD "Build with Discord support" OFF)
 option(USE_MINIUPNPC "Build with miniUPnPc support" ON)
 option(USE_ARMIPS "Build with armips support in API/debuggerdebugger" ON)
 option(USE_SYSTEM_SNAPPY "Dynamically link against system snappy" ${USE_SYSTEM_SNAPPY})
@@ -195,11 +195,14 @@ if(USE_CCACHE)
 endif()
 
 if(UNIX AND NOT (APPLE OR ANDROID) AND VULKAN)
-	if(USING_X11_VULKAN)
+	if(USING_X11_VULKAN AND NOT OHOS)
 		message("Using X11 for Vulkan")
 		find_package(X11)
 		include_directories(${X11_Xlib_INCLUDE_PATH})
 		add_compile_definitions(VK_USE_PLATFORM_XLIB_KHR)
+	elseif(OHOS)
+	    message("Using OHOS for Vulkan")
+	    add_definitions(-DVK_USE_PLATFORM_OHOS)
 	else()
 		message("NOT using X11 for Vulkan")
 	endif()
@@ -227,12 +230,12 @@ if(LIBRETRO)
 	endif()
 endif()
 
-if(ANDROID)
+if(ANDROID OR OHOS)
 	set(MOBILE_DEVICE ON)
 	set(USING_GLES2 ON)
 endif()
 
-if(ANDROID AND NOT LIBRETRO)
+if((ANDROID OR OHOS) AND NOT LIBRETRO)
 	set(CoreLibName ppsspp_jni)
 	set(CoreLinkType SHARED)
 else()
@@ -267,6 +270,9 @@ if(OPENXR AND NOT ARMV7_DEVICE)
 	set(OPENGL_LIBRARIES GLESv3 EGL)
 elseif(NOT OPENGL_LIBRARIES AND USING_GLES2)
 	set(OPENGL_LIBRARIES GLESv2 EGL)
+	if(OHOS)
+	set(OPENGL_LIBRARIES GLESv3 EGL )
+	endif()
 endif()
 
 if(NOT OPENGL_LIBRARIES)
@@ -283,7 +289,7 @@ if(USING_EGL)
 	set(OPENGL_LIBRARIES ${OPENGL_LIBRARIES} ${EGL_LIBRARIES})
 endif()
 
-if(NOT LIBRETRO AND NOT IOS AND NOT MACOSX)
+if(NOT LIBRETRO AND NOT IOS AND NOT MACOSX AND NOT OHOS)
 	find_package(SDL2)
 	find_package(SDL2_ttf)
 	find_package(Fontconfig)
@@ -316,7 +322,7 @@ if(APPLE)
 	find_library(QUARTZ_CORE_LIBRARY QuartzCore)
 endif()
 
-include_directories("${CMAKE_SOURCE_DIR}")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(USING_EGL)
 	add_compile_definitions(USING_EGL)
@@ -461,7 +467,7 @@ if(NOT MSVC)
 		endif()
 		add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>" -U__STRICT_ANSI__)
 		set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-	elseif(NOT ANDROID)
+	elseif(NOT ANDROID AND NOT OHOS)
 		# TODO: See if we can get rid of no-psabi
 		if(NOT ${CMAKE_C_COMPILER_ID} STREQUAL "Intel" AND NOT ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
 			add_compile_options(-Wno-psabi)
@@ -700,8 +706,12 @@ add_library(Common STATIC
 	Common/File/VFS/DirectoryReader.h
 	Common/File/AndroidStorage.h
 	Common/File/AndroidStorage.cpp
+    Common/File/OHOSStorage.h
+    Common/File/OHOSStorage.cpp
 	Common/File/AndroidContentURI.h
 	Common/File/AndroidContentURI.cpp
+	Common/File/OHOSContentURI.h
+    Common/File/OHOSContentURI.cpp
 	Common/File/DiskFree.h
 	Common/File/DiskFree.cpp
 	Common/File/Path.h
@@ -732,7 +742,7 @@ add_library(Common STATIC
 	Common/GPU/OpenGL/GLDebugLog.h
 	Common/GPU/OpenGL/GLSLProgram.cpp
 	Common/GPU/OpenGL/GLSLProgram.h
-	Common/GPU/OpenGL/gl3stub.c
+	Common/GPU/OpenGL/gl3stub.cpp
 	Common/GPU/OpenGL/gl3stub.h
 	Common/GPU/OpenGL/GLFeatures.cpp
 	Common/GPU/OpenGL/GLFeatures.h
@@ -894,6 +904,7 @@ add_library(Common STATIC
 	Common/Log/LogManager.h
 	Common/LogReporting.cpp
 	Common/LogReporting.h
+	Common/MemArenaOHOS.cpp
 	Common/MemArenaAndroid.cpp
 	Common/MemArenaDarwin.cpp
 	Common/MemArenaPosix.cpp
@@ -955,6 +966,16 @@ if(USE_FFMPEG)
 				elseif(X86)
 					set(PLATFORM_ARCH "android/x86")
 				endif()
+			elseif(OHOS)
+                if(ARMV7)
+                    set(PLATFORM_ARCH "ohos/armv7")
+                elseif(ARM64)
+                    set(PLATFORM_ARCH "ohos/arm64")
+                elseif(X86_64)
+                    set(PLATFORM_ARCH "ohos/x86_64")
+                elseif(X86)
+                    set(PLATFORM_ARCH "ohos/x86")
+                endif()
 			elseif(IOS)
 				if(IOS_PLATFORM STREQUAL "TVOS")
 					set(PLATFORM_ARCH "tvos/arm64")
@@ -1018,7 +1039,7 @@ if(USE_FFMPEG)
 endif(USE_FFMPEG)
 
 find_package(ZLIB)
-if(ZLIB_FOUND AND NOT ANDROID)
+if(ZLIB_FOUND AND NOT ANDROID AND NOT OHOS)
 	include_directories(${ZLIB_INCLUDE_DIR})
 	add_compile_definitions(SHARED_ZLIB)
 else()
@@ -1315,6 +1336,23 @@ if(ANDROID)
 		android/jni/OpenSLContext.cpp
 		android/jni/OpenSLContext.h
 	)
+ elseif(OHOS AND NOT LIBRETRO)
+ message(1111 source)
+ set(NativeAppSource
+      ${NativeAppSource}
+      ohos/cpp/app-ohos.cpp
+      ohos/cpp/ohos-log.h
+      ohos/cpp/TestRunner.cpp
+      ohos/cpp/OHOSGraphicsContext.h
+      ohos/cpp/OHOSOpenGLContext.cpp
+      ohos/cpp/OHOSOpenGLContext.h
+      ohos/cpp/OHOSVulkanContext.cpp
+      ohos/cpp/OHOSVulkanContext.h
+      ohos/cpp/OHOSAudio.cpp
+      ohos/cpp/OHOSAudio.h
+      ohos/cpp/OpenSLContext.cpp
+      ohos/cpp/OpenSLContext.h
+ )
 	# No target
 elseif(IOS AND NOT LIBRETRO)
 	set(nativeExtra ${nativeExtra}
@@ -1604,7 +1642,11 @@ if(ANDROID)
 		set(nativeExtra ${nativeExtra} ${NativeAppSource})
 	endif()
 endif()
-
+if(OHOS)
+    if (NOT LIBRETRO)
+        set(nativeExtra ${nativeExtra} ${NativeAppSource})
+    endif()
+endif()
 if (IOS)
 	set(nativeExtra ${nativeExtra} ${NativeAppSource})
 endif()
@@ -1635,6 +1677,8 @@ endif()
 
 if(ANDROID)
 	target_link_libraries(native log EGL OpenSLES)
+elseif(OHOS)
+    target_link_libraries(native hilog_ndk.z EGL OpenSLES libace_napi.z.so libohfileuri.so)
 elseif(WIN32)
 	target_link_libraries(native ws2_32 winmm)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "^(DragonFly|FreeBSD|NetBSD)$")
@@ -2489,7 +2533,7 @@ if(NOT HTTPS_NOT_AVAILABLE)
 endif()
 
 target_compile_features(${CoreLibName} PUBLIC cxx_std_17)
-
+message(FFmpeg_FOUND  ${FFmpeg_FOUND})
 if(FFmpeg_FOUND)
 	target_compile_definitions(${CoreLibName} PRIVATE USE_FFMPEG=1)
 	if (HAVE_LIBAVCODEC_CONST_AVCODEC)
@@ -2909,7 +2953,7 @@ if(TargetBin)
 endif()
 
 # installs
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT OHOS)
 	file(INSTALL ${BigFontAssets} DESTINATION assets)
 	file(INSTALL ${NativeAssets} DESTINATION assets)
 	file(INSTALL assets/flash0 DESTINATION assets)
@@ -3052,7 +3096,7 @@ if(MACOSX AND NOT IOS)
 	endif()
 endif()
 
-if(UNIX AND NOT ANDROID AND NOT APPLE)
+if(UNIX AND NOT ANDROID AND NOT OHOS AND NOT APPLE)
 	configure_file(
 		"${CMAKE_SOURCE_DIR}/ppsspp.desktop.in"
 		"${CMAKE_BINARY_DIR}/ppsspp.desktop"

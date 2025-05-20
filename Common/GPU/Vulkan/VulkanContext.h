@@ -23,6 +23,14 @@
 #define VK_PROFILE_BEGIN(vulkan, cmd, stage, ...) vulkan->GetProfiler()->Begin(cmd, stage, __VA_ARGS__);
 #define VK_PROFILE_END(vulkan, cmd, stage) vulkan->GetProfiler()->End(cmd, stage);
 
+enum {
+	VULKAN_FLAG_VALIDATE = 1,
+	VULKAN_FLAG_PRESENT_MAILBOX = 2,
+	VULKAN_FLAG_PRESENT_IMMEDIATE = 4,
+	VULKAN_FLAG_PRESENT_FIFO_RELAXED = 8,
+	VULKAN_FLAG_PRESENT_FIFO = 16,
+};
+
 enum class VulkanInitFlags : uint32_t {
 	VALIDATE = (1 << 0),
 	PRESENT_MAILBOX = (1 << 1),
@@ -460,6 +468,8 @@ private:
 	VkSurfaceKHR surface_ = VK_NULL_HANDLE;
 	u32 vulkanInstanceApiVersion_ = 0;
 	u32 vulkanDeviceApiVersion_ = 0;
+	// ohos
+	u32 vulkanApiVersion_ = 0;
 
 	std::string init_error_;
 	std::vector<const char *> instance_layer_names_;

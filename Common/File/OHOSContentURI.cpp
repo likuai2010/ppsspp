@@ -24,7 +24,7 @@ bool OHOSContentURI::Parse(std::string_view path) {
 
 OHOSContentURI OHOSContentURI::WithRootFilePath(const std::string &filePath) {
 	if (root.empty()) {
-		ERROR_LOG(SYSTEM, "WithRootFilePath cannot be used with single file URIs.");
+		ERROR_LOG(Log::System, "WithRootFilePath cannot be used with single file URIs.");
 		return *this;
 	}
 
@@ -92,7 +92,7 @@ bool OHOSContentURI::ComputePathTo(const OHOSContentURI &other, std::string &pat
 	size_t offset = FilePath().size() + 1;
 	const auto &otherFilePath = other.FilePath();
 	if (offset >= otherFilePath.size()) {
-		ERROR_LOG(SYSTEM, "Bad call to PathTo. '%s' -> '%s'", FilePath().c_str(), other.FilePath().c_str());
+		ERROR_LOG(Log::System, "Bad call to PathTo. '%s' -> '%s'", FilePath().c_str(), other.FilePath().c_str());
 		return false;
 	}
 
