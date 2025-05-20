@@ -26,6 +26,9 @@
 #if PPSSPP_PLATFORM(ANDROID)
 #include "android/jni/app-android.h"
 #endif
+#if PPSSPP_PLATFORM(OHOS)
+#include "Common/File/OHOSStorage.h"
+#endif
 
 #ifdef _WIN32
 #include "Common/CommonWindows.h"
@@ -43,7 +46,7 @@
 #if !defined(_WIN32) && !defined(HAVE_LIBRETRO_VFS)
 
 void LocalFileLoader::DetectSizeFd() {
-#if PPSSPP_PLATFORM(ANDROID) || (defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS < 64)
+#if PPSSPP_PLATFORM(ANDROID)  || PPSSPP_PLATFORM(OHOS) || (defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS < 64)
 	off64_t off = lseek64(fd_, 0, SEEK_END);
 	filesize_ = off;
 	lseek64(fd_, 0, SEEK_SET);
@@ -84,6 +87,20 @@ LocalFileLoader::LocalFileLoader(const Path &filename)
 		DetectSizeFd();
 		return;
 	}
+#endif
+#if PPSSPP_PLATFORM(OHOS) && !defined(HAVE_LIBRETRO_VFS)
+    if (filename.Type() == PathType::FILE_URI) {
+        int fd = OHOS_OpenContentUriFd(filename.ToString(), OHOS_OpenContentUriMode::READ);
+        VERBOSE_LOG(Log::System, "LocalFileLoader Fd %d for content URI: '%s'", fd, filename.c_str());
+        if (fd < 0) {
+            ERROR_LOG(Log::FileSystem, "LocalFileLoader failed to open content URI: '%s'", filename.c_str());
+            return;
+        }
+        fd_ = fd;
+        isOpenedByFd_ = true;
+        DetectSizeFd();
+        return;
+    }
 #endif
 
 #if defined(HAVE_LIBRETRO_VFS)
@@ -200,6 +217,21 @@ size_t LocalFileLoader::ReadAt(s64 absolutePos, size_t bytes, size_t count, void
 		lseek64(fd_, absolutePos, SEEK_SET);
 		return read(fd_, data, bytes * count) / bytes;
 	}
+#elif PPSSPP_PLATFORM(OHOS)
+    // pread64 doesn't appear to actually be 64-bit safe, though such ISOs are uncommon.  See #10862.
+    if (absolutePos <= 0x7FFFFFFF) {
+#if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS < 64
+        return pread64(fd_, data, bytes * count, absolutePos) / bytes;
+#else
+        return pread(fd_, data, bytes * count, absolutePos) / bytes;
+#endif
+    } else {
+        // Since pread64 doesn't change the file offset, it should be safe to avoid the lock in the common case.
+        std::lock_guard<std::mutex> guard(readLock_);
+        lseek64(fd_, absolutePos, SEEK_SET);
+        return read(fd_, data, bytes * count) / bytes;
+    }
+
 #elif !defined(_WIN32)
 #if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS < 64
 	return pread64(fd_, data, bytes * count, absolutePos) / bytes;

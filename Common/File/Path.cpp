@@ -10,9 +10,12 @@
 #include "Common/StringUtils.h"
 #include "Common/Log.h"
 #include "Common/Data/Encoding/Utf8.h"
-
+#if PPSSPP_PLATFORM(OHOS) 
+#include "Common/File/OHOSContentURI.h"
+#endif
+#if PPSSPP_PLATFORM(ANDROID)
 #include "android/jni/app-android.h"
-
+#endif
 #if PPSSPP_PLATFORM(UWP) && !defined(__LIBRETRO__)
 #include "UWP/UWPHelpers/StorageManager.h"
 #endif
@@ -41,6 +44,7 @@ void Path::Init(std::string_view str) {
 	} else if (startsWith(str, "http://") || startsWith(str, "https://")) {
 		type_ = PathType::HTTP;
 		path_ = str;
+	#if PPSSPP_PLATFORM(ANDROID)
 	} else if (Android_IsContentUri(str)) {
 		// Content URIs on non scoped-storage (and possibly other cases?) can contain
 		// "raw:/" URIs inside. This happens when picking the Download folder using the folder browser
@@ -60,6 +64,13 @@ void Path::Init(std::string_view str) {
 			type_ = PathType::CONTENT_URI;
 			path_ = str;
 		}
+	#endif
+    #if PPSSPP_PLATFORM(OHOS)
+	} else if (startsWith(str, "file://")) {
+		// A normal file URI path.
+        type_ = PathType::FILE_URI;
+        path_ = str;
+	#endif  
 	} else {
 		type_ = PathType::NATIVE;
 		path_ = str;
@@ -87,9 +98,12 @@ Path Path::operator /(std::string_view subdir) const {
 		AndroidContentURI uri(path_);
 		return Path(uri.WithComponent(subdir).ToString());
 	}
-
+    if(type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+        return Path(uri.WithComponent(subdir).ToString());
+    }
+    
 	// Direct string manipulation.
-
 	if (subdir.empty()) {
 		return Path(path_);
 	}
@@ -114,6 +128,10 @@ Path Path::WithExtraExtension(std::string_view ext) const {
 		AndroidContentURI uri(path_);
 		return Path(uri.WithExtraExtension(ext).ToString());
 	}
+    if(type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+        return Path(uri.WithExtraExtension(ext).ToString());
+    }
 
 	_dbg_assert_(!ext.empty() && ext[0] == '.');
 	return Path(path_ + std::string(ext));
@@ -124,6 +142,10 @@ Path Path::WithReplacedExtension(const std::string &oldExtension, const std::str
 		AndroidContentURI uri(path_);
 		return Path(uri.WithReplacedExtension(oldExtension, newExtension).ToString());
 	}
+    if (type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+        return Path(uri.WithReplacedExtension(oldExtension, newExtension).ToString());
+    }
 
 	_dbg_assert_(!oldExtension.empty() && oldExtension[0] == '.');
 	_dbg_assert_(!newExtension.empty() && newExtension[0] == '.');
@@ -140,6 +162,10 @@ Path Path::WithReplacedExtension(const std::string &newExtension) const {
 		AndroidContentURI uri(path_);
 		return Path(uri.WithReplacedExtension(newExtension).ToString());
 	}
+    if (type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+       	return Path(uri.WithReplacedExtension(newExtension).ToString());
+    }
 
 	_dbg_assert_(!newExtension.empty() && newExtension[0] == '.');
 	if (path_.empty()) {
@@ -155,6 +181,10 @@ std::string Path::GetFilename() const {
 		AndroidContentURI uri(path_);
 		return uri.GetLastPart();
 	}
+    if (type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+       	return uri.GetLastPart();
+    }
 	size_t pos = path_.rfind('/');
 	if (pos != std::string::npos) {
 		return path_.substr(pos + 1);
@@ -184,6 +214,10 @@ std::string Path::GetFileExtension() const {
 		AndroidContentURI uri(path_);
 		return uri.GetFileExtension();
 	}
+    if (type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+         return uri.GetFileExtension();
+    }
 	return GetExtFromString(path_);
 }
 
@@ -194,6 +228,11 @@ std::string Path::GetDirectory() const {
 		uri.NavigateUp();
 		return uri.ToString();
 	}
+    if (type_ == PathType::FILE_URI){
+        OHOSContentURI uri(path_);
+        uri.NavigateUp();
+		return uri.ToString();
+    }
 
 	size_t pos = path_.rfind('/');
 	if (type_ == PathType::HTTP) {
@@ -232,10 +271,13 @@ bool Path::FilePathContainsNoCase(std::string_view needle) const {
 	std::string haystack;
 	if (type_ == PathType::CONTENT_URI) {
 		haystack = AndroidContentURI(path_).FilePath();
-	} else {
-		haystack = path_;
-	}
-	auto pred = [](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); };
+    } else if (type_ == PathType::FILE_URI) {
+        haystack = OHOSContentURI(path_).FilePath();
+    }
+    else {
+        haystack = path_;
+    }
+    auto pred = [](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); };
 	auto found = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), pred);
 	return found != haystack.end();
 }
@@ -277,8 +319,11 @@ std::string Path::ToCString() const {
 #endif
 
 std::string Path::ToVisualString(const char *relativeRoot) const {
-	if (type_ == PathType::CONTENT_URI) {
+    
+	if (type_ == PathType::CONTENT_URI) 
 		return AndroidContentURI(path_).ToVisualString();
+    if (type_ == PathType::FILE_URI) {
+		return OHOSContentURI(path_).ToVisualString();    
 #if PPSSPP_PLATFORM(WINDOWS)
 	} else if (type_ == PathType::NATIVE) {
 #if PPSSPP_PLATFORM(UWP) && !defined(__LIBRETRO__)
@@ -317,13 +362,20 @@ std::string Path::ToVisualString(const char *relativeRoot) const {
 bool Path::CanNavigateUp() const {
 	if (type_ == PathType::CONTENT_URI) {
 		return AndroidContentURI(path_).CanNavigateUp();
-	} else if (type_ == PathType::HTTP) {
+	}else if (type_ == PathType::FILE_URI){
+        return OHOSContentURI(path_).CanNavigateUp();
+    } else if (type_ == PathType::HTTP) {
 		size_t rootSlash = path_.find_first_of('/', strlen("https://"));
 		if (rootSlash == path_.npos || path_.size() == rootSlash + 1) {
 			// This means, "http://server" or "http://server/".  Can't go up.
 			return false;
 		}
 	}
+    #if PPSSPP_PLATFORM(OHOS)
+   if (endsWith(path_, "storage/Users/currentUser")) {
+		return false;
+	}
+    #endif
 	if (path_ == "/" || path_.empty()) {
 		return false;
 	}
@@ -336,6 +388,11 @@ Path Path::NavigateUp() const {
 		uri.NavigateUp();
 		return Path(uri.ToString());
 	}
+    if (type_ == PathType::FILE_URI) {
+        OHOSContentURI uri(path_);
+        uri.NavigateUp();
+		return Path(uri.ToString());
+    }
 	std::string dir = GetDirectory();
 	return Path(dir);
 }
@@ -351,6 +408,11 @@ Path Path::GetRootVolume() const {
 		AndroidContentURI rootPath = uri.WithRootFilePath("");
 		return Path(rootPath.ToString());
 	}
+    if (type_ == PathType::FILE_URI) {
+        OHOSContentURI uri(path_);
+        OHOSContentURI rootPath = uri.WithRootFilePath("");
+		return Path(rootPath.ToString());
+    }
 
 #if PPSSPP_PLATFORM(WINDOWS)
 	if (path_[1] == ':') {
@@ -375,6 +437,10 @@ Path Path::GetRootVolume() const {
 
 bool Path::IsAbsolute() const {
 	if (type_ == PathType::CONTENT_URI) {
+		// These don't exist in relative form.
+		return true;
+	}
+    if (type_ == PathType::FILE_URI) {
 		// These don't exist in relative form.
 		return true;
 	}
@@ -411,6 +477,14 @@ bool Path::ComputePathTo(const Path &other, std::string &path) const {
 	if (type_ == PathType::CONTENT_URI) {
 		AndroidContentURI a(path_);
 		AndroidContentURI b(other.path_);
+		if (a.RootPath() != b.RootPath()) {
+			// No common root, can't do anything
+			return false;
+		}
+		return a.ComputePathTo(b, path);
+	} else if (type_ == PathType::CONTENT_URI) {
+		OHOSContentURI a(path_);
+		OHOSContentURI b(other.path_);
 		if (a.RootPath() != b.RootPath()) {
 			// No common root, can't do anything
 			return false;

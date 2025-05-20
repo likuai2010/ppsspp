@@ -191,6 +191,8 @@ PFN_vkCmdExecuteCommands vkCmdExecuteCommands;
 
 #ifdef __ANDROID__
 PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
+#elif __OHOS__
+PFN_vkCreateSurfaceOHOS vkCreateSurfaceOHOS;
 #elif defined(_WIN32)
 PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
 #endif
@@ -497,6 +499,8 @@ bool VulkanMayBeAvailable() {
 	const char * const platformSurfaceExtension = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 #elif defined(__ANDROID__)
 	const char *platformSurfaceExtension = VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+#elif defined(__OHOS__)
+    const char *platformSurfaceExtension = VK_OHOS_SURFACE_EXTENSION_NAME;
 #elif defined(VK_USE_PLATFORM_METAL_EXT)
 	const char * const platformSurfaceExtension = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
 #else
@@ -719,6 +723,10 @@ void VulkanLoadInstanceFunctions(VkInstance instance, const VulkanExtensions &en
 	LOAD_INSTANCE_FUNC(instance, vkCreateWin32SurfaceKHR);
 #elif defined(__ANDROID__)
 	LOAD_INSTANCE_FUNC(instance, vkCreateAndroidSurfaceKHR);
+#elif __OHOS__
+    LOAD_INSTANCE_FUNC(instance, vkCreateSurfaceOHOS);
+    if (!vkCreateSurfaceOHOS)
+        LOAD_GLOBAL_FUNC(vkCreateSurfaceOHOS);
 #elif defined(VK_USE_PLATFORM_METAL_EXT)
 	LOAD_INSTANCE_FUNC(instance, vkCreateMetalSurfaceEXT);
 #endif

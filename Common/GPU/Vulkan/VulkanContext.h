@@ -62,6 +62,9 @@ enum WindowSystem {
 #ifdef __ANDROID__
 	WINDOWSYSTEM_ANDROID,
 #endif
+#ifdef __OHOS__
+	WINDOWSYSTEM_OHOS,
+#endif
 #ifdef VK_USE_PLATFORM_METAL_EXT
 	WINDOWSYSTEM_METAL_EXT,
 #endif

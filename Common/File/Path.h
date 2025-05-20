@@ -30,6 +30,7 @@ enum class PathType {
 	NATIVE = 1,  // Can be relative.
 	CONTENT_URI = 2,  // Android only. Can only be absolute!
 	HTTP = 3,  // http://, https://
+	FILE_URI = 4,  // OHOS only. Can only be absolute!
 };
 
 // Windows paths are always stored with '/' slashes in a Path.

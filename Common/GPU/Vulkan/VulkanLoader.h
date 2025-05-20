@@ -37,6 +37,12 @@
 #endif
 
 #include "ext/vulkan/vulkan.h"
+#if PPSSPP_PLATFORM(OHOS)
+#undef VK_ENABLE_BETA_EXTENSIONS
+#include <vulkan/vulkan.h>
+#else
+    #include "ext/vulkan/vulkan.h"
+#endif
 #include <string>
 
 // Hacky X11 header workaround
@@ -193,6 +199,8 @@ extern PFN_vkCmdExecuteCommands vkCmdExecuteCommands;
 
 #ifdef __ANDROID__
 extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
+#elif __OHOS__
+extern PFN_vkCreateSurfaceOHOS vkCreateSurfaceOHOS;
 #elif defined(_WIN32)
 extern PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
 #elif defined(VK_USE_PLATFORM_METAL_EXT)
