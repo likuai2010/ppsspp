@@ -1,0 +1,149 @@
+#include "Common/Log.h"
+
+#include "OHOSAudio.h"
+#include "OpenSLContext.h"
+
+std::string g_error;
+std::mutex g_errorMutex;
+
+AudioContext::AudioContext(OHOSAudioCallback cb, int _FramesPerBuffer, int _SampleRate)
+	: audioCallback(cb), framesPerBuffer(_FramesPerBuffer), sampleRate(_SampleRate) {
+	if (framesPerBuffer == 0)
+		framesPerBuffer = 256;
+	if (framesPerBuffer < 32)
+		framesPerBuffer = 32;
+	if (framesPerBuffer > 4096)
+		framesPerBuffer = 4096;
+
+	sampleRate = _SampleRate;
+	g_error = "";
+}
+
+void AudioContext::SetErrorString(const std::string &error) {
+	std::unique_lock<std::mutex> lock(g_errorMutex);
+	g_error = error;
+}
+
+struct OHOSAudioState {
+	AudioContext *ctx = nullptr;
+	OHOSAudioCallback callback = nullptr;
+	// output
+	int frames_per_buffer = 0;
+	int sample_rate = 0;
+	// input
+	int input_enable = 0;
+	int input_sample_rate = 0;
+};
+
+OHOSAudioState *OHOSAudio_Init(OHOSAudioCallback callback, int optimalFramesPerBuffer, int optimalSampleRate) {
+	OHOSAudioState *state = new OHOSAudioState();
+	state->callback = callback;
+	state->frames_per_buffer = optimalFramesPerBuffer ? optimalFramesPerBuffer : 256;
+	state->sample_rate = optimalSampleRate ? optimalSampleRate : 44100;
+	return state;
+}
+
+bool OHOSAudio_Recording_SetSampleRate(OHOSAudioState *state, int sampleRate) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "OHOSAudioState not initialized, cannot set recording sample rate");
+		return false;
+	}
+	state->input_sample_rate = sampleRate;
+	INFO_LOG(AUDIO, "OHOSAudio_Recording_SetSampleRate=%d", sampleRate);
+	return true;
+}
+
+bool OHOSAudio_Recording_Start(OHOSAudioState *state) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "OHOSAudioState not initialized, cannot start recording!");
+		return false;
+	}
+	state->input_enable = 1;
+	if (!state->ctx) {
+		ERROR_LOG(AUDIO, "OpenSLContext not initialized, cannot start recording!");
+		return false;
+	}
+	state->ctx->AudioRecord_Start(state->input_sample_rate);
+	INFO_LOG(AUDIO, "OHOSAudio_Recording_Start");
+	return true;
+}
+
+bool OHOSAudio_Recording_Stop(OHOSAudioState *state) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "OHOSAudioState not initialized, cannot stop recording!");
+		return false;
+	}
+	if (!state->ctx) {
+		ERROR_LOG(AUDIO, "OpenSLContext not initialized, cannot stop recording!");
+		return false;
+	}
+	state->input_enable = 0;
+	state->input_sample_rate = 0;
+	state->ctx->AudioRecord_Stop();
+	INFO_LOG(AUDIO, "OHOSAudio_Recording_Stop");
+	return true;
+}
+
+bool OHOSAudio_Recording_State(OHOSAudioState *state) {
+	if (!state) {
+		return false;
+	}
+	return state->input_enable;
+}
+
+bool OHOSAudio_Resume(OHOSAudioState *state) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "Audio was shutdown, cannot resume!");
+		return false;
+	}
+	if (!state->ctx) {
+		INFO_LOG(AUDIO, "Calling OpenSLWrap_Init_T...");
+		state->ctx = new OpenSLContext(state->callback, state->frames_per_buffer, state->sample_rate);
+		INFO_LOG(AUDIO, "Returned from OpenSLWrap_Init_T");
+		bool init_retval = state->ctx->Init();
+		if (!init_retval) {
+			delete state->ctx;
+			state->ctx = nullptr;
+		} else if (state->input_enable) {
+			state->ctx->AudioRecord_Start(state->input_sample_rate);
+		}
+		return init_retval;
+	}
+	return false;
+}
+
+bool OHOSAudio_Pause(OHOSAudioState *state) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "Audio was shutdown, cannot pause!");
+		return false;
+	}
+	if (state->ctx) {
+		INFO_LOG(AUDIO, "Calling OpenSLWrap_Shutdown_T...");
+		delete state->ctx;
+		state->ctx = nullptr;
+		INFO_LOG(AUDIO, "Returned from OpenSLWrap_Shutdown_T ...");
+		return true;
+	}
+	return false;
+}
+bool OHOSAudio_Shutdown(OHOSAudioState *state) {
+	if (!state) {
+		ERROR_LOG(AUDIO, "Audio already shutdown!");
+		return false;
+	}
+	if (state->ctx) {
+		ERROR_LOG(AUDIO, "Should not shut down when playing! Something is wrong!");
+		return false;
+	}
+	delete state;
+	INFO_LOG(AUDIO, "OpenSLWrap completely unloaded.");
+	return true;
+}
+
+const std::string OHOSAudio_GetErrorString(OHOSAudioState *state) {
+	if (!state) {
+		return "No state";
+	}
+	std::unique_lock<std::mutex> lock(g_errorMutex);
+	return g_error;
+}
