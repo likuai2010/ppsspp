@@ -58,7 +58,12 @@
 #include "Common/UI/View.h"
 #include "Common/UI/IconCache.h"
 
+#if PPSSPP_PLATFORM(ANDROID)
 #include "android/jni/app-android.h"
+#endif
+#if PPSSPP_PLATFORM(OHOS)
+#include "ohos/ohos-log.h"
+#endif
 
 #include "Common/System/Display.h"
 #include "Common/System/Request.h"
@@ -450,6 +455,38 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	if (!System_GetPropertyBool(SYSPROP_ANDROID_SCOPED_STORAGE)) {
 		CreateSysDirectories();
 	}
+	#elif PPSSPP_PLATFORM(OHOS)
+    g_Config.defaultCurrentDirectory = g_Config.internalDataDirectory;
+    g_Config.flash0Directory = Path(external_dir) / "flash0";
+    Path memstickDirFile = g_Config.internalDataDirectory / "memstick_dir.txt";
+    if (File::Exists(memstickDirFile)) {
+        INFO_LOG(Log::System, "Reading '%s' to find memstick dir.", memstickDirFile.c_str());
+        std::string memstickDir;
+        if (File::ReadTextFileToString(memstickDirFile, &memstickDir)) {
+            Path memstickPath(memstickDir);
+            if (!memstickPath.empty() && File::Exists(memstickPath)) {
+                g_Config.memStickDirectory = memstickPath;
+                INFO_LOG(Log::System, "Memstick Directory from memstick_dir.txt: '%s'", g_Config.memStickDirectory.c_str());
+            } else {
+                ERROR_LOG(Log::System, "Couldn't read directory '%s' specified by memstick_dir.txt.", memstickDir.c_str());
+                if (System_GetPropertyBool(SYSPROP_ANDROID_SCOPED_STORAGE)) {
+                    // Ask the user to configure a memstick directory.
+                    INFO_LOG(Log::System, "Asking the user.");
+                    g_Config.memStickDirectory.clear();
+                }
+            }
+        }
+    } else {
+        INFO_LOG(Log::System, "No memstick directory file found (tried to open '%s')", memstickDirFile.c_str());
+    }
+
+    Path memstickPath("/data/storage/el1/bundle/entry/resources/resfile/");
+    g_Config.memStickDirectory = g_Config.internalDataDirectory;
+
+    // Attempt to create directories after reading the path.
+    if (!System_GetPropertyBool(SYSPROP_ANDROID_SCOPED_STORAGE)) {
+        CreateSysDirectories();
+    }
 #elif PPSSPP_PLATFORM(UWP) && !defined(__LIBRETRO__)
 	Path memstickDirFile = g_Config.internalDataDirectory / "memstick_dir.txt";
 	if (File::Exists(memstickDirFile)) {

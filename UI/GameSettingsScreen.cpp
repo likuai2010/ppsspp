@@ -91,6 +91,15 @@
 #include "Windows/W32Util/ShellUtil.h"
 #endif
 
+#if PPSSPP_PLATFORM(OHOS)
+
+#include "ohos/cpp/TestRunner.h"
+#include "ohos/cpp/OHOSAudio.h"
+extern OHOSAudioState *g_audioState;
+
+#endif
+
+
 #if PPSSPP_PLATFORM(ANDROID)
 
 #include "android/jni/AndroidAudio.h"
@@ -708,6 +717,17 @@ void GameSettingsScreen::CreateAudioSettings(UI::ViewGroup *audioSettings) {
 		audioSettings->Add(new CheckBox(&g_Config.bAutoAudioDevice, a->T("Use new audio devices automatically")));
 	}
 
+#if PPSSPP_PLATFORM(OHOS)
+    CheckBox *extraAudio = audioSettings->Add(new CheckBox(&g_Config.bExtraAudioBuffering, a->T("AudioBufferingForBluetooth", "Bluetooth-friendly buffer (slower)")));
+    extraAudio->SetEnabledPtr(&g_Config.bEnableSound);
+
+    // Show OpenSL debug info
+    const std::string audioErrorStr = OHOSAudio_GetErrorString(g_audioState);
+    if (!audioErrorStr.empty()) {
+        audioSettings->Add(new InfoItem(a->T("Audio Error"), audioErrorStr));
+    }
+#endif
+
 #if PPSSPP_PLATFORM(ANDROID)
 	CheckBox *extraAudio = audioSettings->Add(new CheckBox(&g_Config.bExtraAudioBuffering, a->T("AudioBufferingForBluetooth", "Bluetooth-friendly buffer (slower)")));
 
@@ -1299,7 +1319,7 @@ void GameSettingsScreen::CreateSystemSettings(UI::ViewGroup *systemSettings) {
 	PopupSliderChoice *exitConfirmation = systemSettings->Add(new PopupSliderChoice(&g_Config.iAskForExitConfirmationAfterSeconds, 0, 1200, 60, sy->T("Ask for exit confirmation after seconds"), screenManager(), "s"));
 	exitConfirmation->SetZeroLabel(sy->T("Off"));
 
-#if PPSSPP_PLATFORM(ANDROID)
+#if PPSSPP_PLATFORM(ANDROID) || PPSSPP_PLATFORM(OHOS) 
 	if (System_GetPropertyInt(SYSPROP_DEVICE_TYPE) == DEVICE_TYPE_MOBILE) {
 		auto co = GetI18NCategory(I18NCat::CONTROLS);
 

@@ -79,7 +79,13 @@
 int GetD3DCompilerVersion();
 #endif
 
+#if PPSSPP_PLATFORM(OHOS)
+#include "ohos/cpp/TestRunner.h"
+#endif
+#if PPSSPP_PLATFORM(ANDROID)
 #include "android/jni/app-android.h"
+#endif
+
 
 static const char *logLevelList[] = {
 	"Notice",

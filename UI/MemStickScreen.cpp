@@ -17,7 +17,9 @@
 
 #include "ppsspp_config.h"
 
+#if PPSSPP_PLATFORM(ANDROID)
 #include "android/jni/app-android.h"
+#endif
 
 #include "Common/Log.h"
 #include "Common/UI/UI.h"
