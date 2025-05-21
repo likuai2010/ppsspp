@@ -520,7 +520,7 @@ export function translateController(keycode: number): number{
       case KeyCode.KEYCODE_BUTTON_SELECT : return VKCode.VK_BUTTON_SELECT
       case KeyCode.KEYCODE_BUTTON_MODE : return VKCode.VK_BUTTON_MODE
       case KeyCode.KEYCODE_BUTTON_START : return VKCode.VK_BUTTON_START
-      case KeyCode.KEYCODE_BUTTON_L2 : return VKCode.VK_BUTTON_L1
+      case KeyCode.KEYCODE_BUTTON_L2 : return VKCode.VK_BUTTON_L2
       case KeyCode.KEYCODE_BUTTON_L1 : return VKCode.VK_BUTTON_L1
       case KeyCode.KEYCODE_BUTTON_R2 : return VKCode.VK_BUTTON_R2
       case KeyCode.KEYCODE_BUTTON_R1 : return VKCode.VK_BUTTON_R1

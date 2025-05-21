@@ -1181,7 +1181,8 @@ void GameSettingsScreen::CreateSystemSettings(UI::ViewGroup *systemSettings) {
 
 	if (!draw->GetBugs().Has(Draw::Bugs::RASPBERRY_SHADER_COMP_HANG)) {
 		// We use shaders without tint capability on hardware with this driver bug.
-		PopupSliderChoiceFloat *tint = new PopupSliderChoiceFloat(&g_Config.fUITint, 0.0f, 1.0f, 0.0f, sy->T("Color Tint"), 0.01f, screenManager());
+		std::string_view tints = sy->T("Color Tint");
+		PopupSliderChoiceFloat *tint = new PopupSliderChoiceFloat(&g_Config.fUITint, 0.0f, 1.0f, 0.0f, tints, 0.01f, screenManager());
 		tint->SetHasDropShadow(false);
 		tint->SetLiveUpdate(true);
 		systemSettings->Add(tint);

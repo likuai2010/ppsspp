@@ -204,8 +204,7 @@ struct Index {
         deviceId = 1
         code = translateKeyboard(e.keyCode);
       }else {
-        deviceId = 10
-        promptAction.showToast({message: "手柄Id:" + e.deviceId})
+				deviceId = e.deviceId
         code = translateController(e.keyCode);
       }
       if(e.type == KeyType.Up){
@@ -216,7 +215,7 @@ struct Index {
       e.stopPropagation()
     }).onFocusAxisEvent((event)=>{
       // DEVICE_ID_PAD_0 10
-      let deviceId = 10
+			let deviceId = event.deviceId
       let axisIds: number[] = []
       let values: number[] = []
       for(const key of event.axisMap.keys()){
@@ -224,10 +223,10 @@ struct Index {
         const value = event.axisMap.get(key)
         if(value){
           axisIds.push(id)
-          values.push(value * 0x7FFE)
+          values.push(value)
         }
       }
-			promptAction.showToast({message: "joystickAxis:" + JSON.stringify(axisIds) + JSON.stringify(values)})
+
       this.xComponentContext?.joystickAxis(deviceId, axisIds, values, axisIds.length);
       event.stopPropagation()
     })
