@@ -80,5 +80,6 @@ target_link_libraries(entry PUBLIC
                     libnative_window.so
                     ppsspp_core
                     libohfileuri.so
+
    ${EGL-lib} ${GLES-lib} ${hilog-lib} ${libace-lib} ${libnapi-lib} ${libuv-lib} libc++.a
 )

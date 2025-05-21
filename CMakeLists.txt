@@ -836,6 +836,8 @@ add_library(Common STATIC
 	Common/Render/Text/draw_text.cpp
 	Common/Render/Text/draw_text.h
 	Common/Render/Text/draw_text_android.cpp
+	Common/Render/Text/draw_text_ohos.cpp
+	Common/Render/Text/draw_text_ohos.h
 	Common/Render/Text/draw_text_android.h
 	Common/Render/Text/draw_text_sdl.cpp
 	Common/Render/Text/draw_text_sdl.h
@@ -1680,7 +1682,7 @@ endif()
 if(ANDROID)
 	target_link_libraries(native log EGL OpenSLES)
 elseif(OHOS)
-    target_link_libraries(native hilog_ndk.z EGL OpenSLES libace_napi.z.so libohfileuri.so)
+    target_link_libraries(native hilog_ndk.z vulkan EGL OpenSLES libnative_drawing.so libace_napi.z.so libohfileuri.so)
 elseif(WIN32)
 	target_link_libraries(native ws2_32 winmm)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "^(DragonFly|FreeBSD|NetBSD)$")
