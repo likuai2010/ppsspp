@@ -4,9 +4,6 @@
 
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
-   
-    ExportApi(env, exports);
-    Native_Init(env, nullptr);
     PluginManager::GetInstance()->Export(env, exports);
     return exports;
 }

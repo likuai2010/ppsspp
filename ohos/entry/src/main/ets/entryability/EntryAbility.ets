@@ -2,7 +2,7 @@ import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import fs from '@ohos.file.fs';
-
+import PPSSPPService from '../pages/PPSSPPService';
 
 
 export async  function readFile(filePath: string): Promise<Uint8Array | null> {
@@ -27,6 +27,7 @@ export function writeFile(filePath: string, data: Uint8Array | null) {
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
+		PPSSPPService.init(this.context)
   }
 
   onDestroy(): void {
@@ -34,14 +35,13 @@ export default class EntryAbility extends UIAbility {
   }
   async initApp(windowStage: window.WindowStage){
     console.log("path xxxx"+ this.context.filesDir +  this.context.tempDir + this.context.resourceDir);
+
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
         return;
       }
-      setTimeout(()=>{
-        windowStage.getMainWindowSync().setWindowSystemBarEnable([])
-      }, 2000)
+
       //
     });
   }
@@ -49,7 +49,6 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
 
     this.initApp(windowStage)
-
   }
 
   onWindowStageDestroy(): void {

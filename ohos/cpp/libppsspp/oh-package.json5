@@ -1,0 +1,6 @@
+{
+  "name": "libppsspp.so",
+  "types": "./index.d.ts",
+  "version": "1.8.1",
+  "description": "ppsspp napi"
+}

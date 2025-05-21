@@ -39,16 +39,20 @@ void OpenSLContext::bqRecorderCallback(SLOHBufferQueueItf bq, void *context, SLu
 // I've chosen to this approach: Instantly enqueue a buffer that was rendered to the last time,
 // and then render the next. Hopefully it's okay to spend time in this callback after having enqueued. 
 void OpenSLContext::bqPlayerCallbackWrap(SLOHBufferQueueItf bq, void *context, SLuint32 size) {
+	
 	OpenSLContext *ctx = (OpenSLContext *)context;
-	ctx->BqPlayerCallback(bq);
+	if(ctx != nullptr){
+		
+		ctx->BqPlayerCallback(bq);
+	}
 }
 
 void OpenSLContext::BqPlayerCallback(SLOHBufferQueueItf bq) {
-	if (bq != bqPlayerBufferQueue) {
+	if (bq != bqPlayerBufferQueue || buffer == nullptr) {
 		ERROR_LOG(Log::Audio, "OpenSL: Wrong bq!");
 		return;
 	}
-
+	
 	int renderedFrames = audioCallback(buffer[curBuffer], framesPerBuffer, SampleRate());
 
 	int sizeInBytes = framesPerBuffer * 2 * sizeof(short);

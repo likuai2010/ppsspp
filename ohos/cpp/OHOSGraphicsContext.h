@@ -27,7 +27,7 @@ enum class GraphicsContextState {
 class OHOSGraphicsContext : public GraphicsContext {
 public:
 	// This is different than the base class function since on
-	// Android (EGL, Vulkan) we do have all this info on the render thread.
+	// OHOS (EGL, Vulkan) we do have all this info on the render thread.
 	virtual bool InitFromRenderThread(void *wnd, int desiredBackbufferSizeX, int desiredBackbufferSizeY, int backbufferFormat, int androidVersion) = 0;
 	virtual void BeginAndroidShutdown() {}
     virtual bool initializeEgl(void *wnd, int width, int height) {

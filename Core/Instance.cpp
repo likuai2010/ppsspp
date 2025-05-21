@@ -142,7 +142,7 @@ void InitInstanceCounter() {
 		PPSSPP_ID = 1;
 		return;
 	}
-#elif PPSSPP_PLATFORM(ANDROID) || defined(__LIBRETRO__) || PPSSPP_PLATFORM(SWITCH)
+#elif PPSSPP_PLATFORM(ANDROID) || PPSSPP_PLATFORM(OHOS)  || defined(__LIBRETRO__) || PPSSPP_PLATFORM(SWITCH)
 	// TODO : replace shm_open & shm_unlink with ashmem or android-shmem
 #else
 	// Create shared memory object
@@ -179,7 +179,7 @@ void ShutdownInstanceCounter() {
 		CloseHandle(mapLock);
 		mapLock = nullptr;
 	}
-#elif PPSSPP_PLATFORM(ANDROID) || defined(__LIBRETRO__) || PPSSPP_PLATFORM(SWITCH)
+#elif PPSSPP_PLATFORM(ANDROID) || PPSSPP_PLATFORM(OHOS) || defined(__LIBRETRO__) || PPSSPP_PLATFORM(SWITCH)
 	// Do nothing
 #else
 	if (hIDMapFile >= 0) {

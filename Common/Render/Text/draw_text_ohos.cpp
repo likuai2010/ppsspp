@@ -129,7 +129,7 @@ TextDrawerOHOS::~TextDrawerOHOS() {
 }
 
 bool TextDrawerOHOS::IsReady() const {
-	return true;
+	return false;
 }
 
 uint32_t TextDrawerOHOS::SetFont(const char *fontName, int size, int flags) {

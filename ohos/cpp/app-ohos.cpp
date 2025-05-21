@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "app-ohos.h"
+#include "napi-utils.h"
 #include "File/VFS/DirectoryReader.h"
 #include "OHOSGraphicsContext.h"
 #include <sstream>
@@ -308,7 +309,7 @@ static void EmuThreadFunc(napi_env env) {
     // Wait for render loop to get started.
     INFO_LOG(Log::System, "Runloop: Waiting for displayInit...");
 	while (!graphicsContext || graphicsContext->GetState() == GraphicsContextState::PENDING) {
-		sleep(5);
+		sleep(1);
 	}
     // Check the state of the graphics context before we try to feed it into NativeInitGraphics.
     if (graphicsContext->GetState() != GraphicsContextState::INITIALIZED) {
@@ -712,22 +713,29 @@ std::vector<std::string> System_GetCameraDeviceList() {
 
 napi_value audioInit(napi_env env, napi_callback_info info);
 
+
+
 napi_value Native_Init(napi_env env, napi_callback_info info)
 {
+ 	audioInit(env, info);
+	GET_NAPI_ARGS(env, info, 3);
+  	GET_NAPI_ARG(std::string, resDir, env, args[0]);
+	GET_NAPI_ARG(std::string, filesDir, env, args[1]);
+	GET_NAPI_ARG(std::string, cacheDir, env, args[2]);
     DEBUG_LOG(Log::System, "NativeApp.init() -- begin");
     std::lock_guard<std::mutex> guard(renderLock);
 	renderer_inited = false;
 	exitRenderLoop = false;
-	apiVersion = 12;
+	apiVersion = 18;
 	deviceType = DEVICE_TYPE_MOBILE;
     
-    Path assetsPath("/data/storage/el1/bundle/entry/resources/resfile/assets");
+    Path assetsPath(resDir + "/assets");
     g_VFS.Register("", new DirectoryReader(assetsPath));
     systemName = "HarmonyOS Next";
 	langRegion = "CN";
   	DEBUG_LOG(Log::System, "NativeApp.init(): device name: '%s'", systemName.c_str());
     
-    std::string externalStorageDir = "/data/storage/el1/bundle/entry/resources/resfile";
+    std::string externalStorageDir = resDir;
 	std::string additionalStorageDirsString = "";
 	std::string externalFilesDir = "";
 	std::string nativeLibDir = "";
@@ -736,12 +744,11 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
 	g_extFilesDir = externalFilesDir;
 	g_nativeLibDir = nativeLibDir;
     
-    std::string user_data_path = "/data/storage/el2/base/haps/entry/files";
+    std::string user_data_path = filesDir;
    
     if (user_data_path.size() > 0)
         user_data_path += "/";
     std::string shortcut_param = ""; 
-    std::string cacheDir = "/data/storage/el2/base/haps/entry/cache";
     
     std::string app_name;
     std::string app_nice_name;
@@ -750,17 +757,17 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     NativeGetAppInfo(&app_name, &app_nice_name, &landscape, &version);
     
     
-    std::vector<const char *> args;
+    std::vector<const char *> cargs;
     std::vector<std::string> temp;
-    args.push_back(app_name.c_str());
+    cargs.push_back(app_name.c_str());
     if (!shortcut_param.empty()) {
 		DEBUG_LOG(Log::System, "NativeInit shortcut param %s", shortcut_param.c_str());
 		parse_args(temp, shortcut_param);
 		for (const auto &arg : temp) {
-			args.push_back(arg.c_str());
+			cargs.push_back(arg.c_str());
 		}
 	}
-    NativeInit((int)args.size(), &args[0], user_data_path.c_str(), externalStorageDir.c_str(), cacheDir.c_str());
+    NativeInit((int)cargs.size(), &cargs[0], user_data_path.c_str(), externalStorageDir.c_str(), cacheDir.c_str());
     // In debug mode, don't allow creating software Vulkan devices (reject by VulkanMaybeAvailable).
 	// Needed for #16931.
     #ifdef NDEBUG
@@ -772,7 +779,7 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
     // force vulkan 
 //     g_Config.iGPUBackend = (int)GPUBackend::VULKAN;
     // No need to use EARLY_LOG anymore.
-    audioInit(env, info);
+   
     retry:
     	switch (g_Config.iGPUBackend) {
     	case (int)GPUBackend::OPENGL:
@@ -1396,3 +1403,23 @@ void ExportApi(napi_env env, napi_value exports){
         ERROR_LOG(Log::System, "Export: napi_define_properties failed");
     }
 }
+
+
+EXTERN_C_START
+static napi_value Init(napi_env env, napi_value exports) {
+    ExportApi(env, exports);
+    return exports;
+}
+EXTERN_C_END
+
+static napi_module demoModule = {
+    .nm_version = 1,
+    .nm_flags = 0,
+    .nm_filename = nullptr,
+    .nm_register_func = Init,
+    .nm_modname = "ppsspp",
+    .nm_priv = ((void *)0),
+    .reserved = {0},
+};
+
+extern "C" __attribute__((constructor)) void RegisterEntryModule(void) { napi_module_register(&demoModule); }
