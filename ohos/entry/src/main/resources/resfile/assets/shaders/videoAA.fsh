@@ -1,4 +1,4 @@
- /*
+/*
    AA shader 4.o / AA shader 4.o - filtro
    
    Copyright (C) 2014 guest(r) - guest.r@gmail.com
