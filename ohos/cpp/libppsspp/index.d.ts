@@ -10,6 +10,6 @@ export interface NativeApi{
   keyUp:(deviceId: number, key:number ) => boolean
   joystickAxis:(deviceId: number, axisIds: number[], values: number[], count: number ) => boolean
   mouseWheelEvent:(x: number, y: number ) => boolean
-  queryConfig:(queryName:string) =>string;
+  queryConfig:(queryName: string) => string;
   isAtTopLevel:() =>boolean;
 }

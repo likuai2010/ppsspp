@@ -1,5 +1,5 @@
 {
-  "name": "libppsspp.so",
+  "name": "libppsspp_core.so",
   "types": "./index.d.ts",
   "version": "1.8.1",
   "description": "ppsspp napi"

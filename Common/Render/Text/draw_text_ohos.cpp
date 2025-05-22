@@ -1,12 +1,8 @@
 #include "ppsspp_config.h"
 
 #include "Common/Log.h"
-#include "Common/StringUtils.h"
-#include "Common/System/Display.h"
 #include "Common/GPU/thin3d.h"
 #include "Common/Data/Hash/Hash.h"
-#include "Common/Data/Text/WrapText.h"
-#include "Common/Data/Encoding/Utf8.h"
 #include "Common/Render/Text/draw_text.h"
 
 #if PPSSPP_PLATFORM(OHOS) && !defined(__LIBRETRO__)
@@ -33,7 +29,7 @@ Point MeasureLine(std::string str, float textScale){
     OH_Drawing_TextBlobDestroy(textBlob);
     OH_Drawing_FontDestroy(font);
     OH_Drawing_RectDestroy(rect);
-    return { static_cast<int>(right), -top + 5 };
+    return { right, -top + 10  };
 }
 std::vector<std::string> SplitString(std::string text){
     text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
@@ -62,20 +58,22 @@ Point MeasureText(std::string text, float textSize){
     if (total.second < 1) total.second = 1;
     if (total.first > 4096) total.first = 4096;
     if (total.second > 4096) total.second = 4096;
+	// Round width up to even already here to avoid annoyances from odd-width 16-bit textures
+	// which OpenGL does not like - each line must be 4-byte aligned
+	total.first = (total.first + 5) & ~1;
     return total;
 }
-int* RenderString(std::string str, float textSize) {
-    Point s = MeasureText(str, textSize);
-    int width = s.first;
-    int height = s.second;
+int* RenderString(Point wh, std::string str, float textSize) {
+    int width = wh.first;
+    int height = wh.second;
     OH_Drawing_Bitmap* cBitmap_ = OH_Drawing_BitmapCreate();
-    OH_Drawing_BitmapFormat cFormat {COLOR_FORMAT_RGBA_8888};
+    OH_Drawing_BitmapFormat cFormat {COLOR_FORMAT_RGBA_8888, ALPHA_FORMAT_OPAQUE};
     OH_Drawing_BitmapBuild(cBitmap_, width, height, &cFormat);
     OH_Drawing_Canvas* cCanvas_ = OH_Drawing_CanvasCreate();
     OH_Drawing_CanvasBind(cCanvas_, cBitmap_);
     
     OH_Drawing_Brush *brush = OH_Drawing_BrushCreate();
-    OH_Drawing_BrushSetColor(brush, 0xff4472c3);
+    OH_Drawing_BrushSetColor(brush, 0);
     OH_Drawing_CanvasAttachBrush(cCanvas_, brush);
     OH_Drawing_Rect *rect = OH_Drawing_RectCreate(0, 0, width, height);
     OH_Drawing_CanvasDrawRect(cCanvas_, rect);
@@ -91,7 +89,6 @@ int* RenderString(std::string str, float textSize) {
         OH_Drawing_Rect* rect = OH_Drawing_RectCreate(0, 0, 0, 0);
         OH_Drawing_TextBlobGetBounds(textBlob, rect);
         int top = OH_Drawing_RectGetTop(rect);
-     
         y += -top;
         OH_Drawing_CanvasDrawTextBlob(cCanvas_, textBlob, 0, y);
         OH_Drawing_TextBlobDestroy(textBlob);
@@ -100,18 +97,19 @@ int* RenderString(std::string str, float textSize) {
     }
   	
     void *bitmapAddr = OH_Drawing_BitmapGetPixels(cBitmap_);
+	if (bitmapAddr == nullptr)
+		return nullptr;
     uint32_t *value = static_cast<uint32_t *>(bitmapAddr);
-    int *dest = (int *)malloc(height * width * sizeof(int));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            // 计算源和目标位置
-            int srcPos = y * width + x;
-            int destPos = y * width + x;
-            // 复制像素
-            dest[destPos] = value[srcPos];
+    int *dest = (int *)malloc(height * width * sizeof(uint32_t));
+    for (int y = 0; y < width; ++y) {
+        for (int x = 0; x < height; ++x) {
+            int srcPos = y * height + x;
+            dest[srcPos] = value[srcPos];
         }
     }
-   return dest;
+	OH_Drawing_CanvasDestroy(cCanvas_);
+	OH_Drawing_BitmapDestroy(cBitmap_);
+   	return dest;
 }
 
 TextDrawerOHOS::TextDrawerOHOS(Draw::DrawContext *draw) : TextDrawer(draw) {
@@ -129,7 +127,7 @@ TextDrawerOHOS::~TextDrawerOHOS() {
 }
 
 bool TextDrawerOHOS::IsReady() const {
-	return false;
+	return true;
 }
 
 uint32_t TextDrawerOHOS::SetFont(const char *fontName, int size, int flags) {
@@ -201,10 +199,9 @@ bool TextDrawerOHOS::DrawStringBitmap(std::vector<uint8_t> &bitmapData, TextStri
 		imageWidth = 1;
 	if (imageHeight <= 0)
 		imageHeight = 1;
-	// WARN_LOG(Log::G3D, "Text: '%.*s' (%02x)", (int)str.length(), str.data(), str[0]);
-	int* jimage = RenderString(text, size);
-//	jintArray imageData = (jintArray)env->CallStaticObjectMethod(cls_textRenderer, method_renderText, jstr, size);
-
+	int* pixels = RenderString(textSize, text, size);
+	if (pixels == nullptr)
+		return false;
 	entry.texture = nullptr;
 	entry.bmWidth = imageWidth;
 	entry.width = imageWidth;
@@ -217,7 +214,7 @@ bool TextDrawerOHOS::DrawStringBitmap(std::vector<uint8_t> &bitmapData, TextStri
 		uint16_t *bitmapData16 = (uint16_t *)&bitmapData[0];
 		for (int y = 0; y < entry.bmHeight; y++) {
 			for (int x = 0; x < entry.bmWidth; x++) {
-				uint32_t v = jimage[imageWidth * y + x];
+				uint32_t v = pixels[imageWidth * y + x];
 				v = 0xFFF0 | ((v >> 28) & 0xF);  // Grab the upper bits from the alpha channel, and put directly in the 16-bit alpha channel.
 				bitmapData16[entry.bmWidth * y + x] = (uint16_t)v;
 			}
@@ -226,7 +223,7 @@ bool TextDrawerOHOS::DrawStringBitmap(std::vector<uint8_t> &bitmapData, TextStri
 		bitmapData.resize(entry.bmWidth * entry.bmHeight);
 		for (int y = 0; y < entry.bmHeight; y++) {
 			for (int x = 0; x < entry.bmWidth; x++) {
-				uint32_t v = jimage[imageWidth * y + x];
+				uint32_t v = pixels[imageWidth * y + x];
 				bitmapData[entry.bmWidth * y + x] = (uint8_t)(v >> 24);
 			}
 		}
@@ -235,7 +232,7 @@ bool TextDrawerOHOS::DrawStringBitmap(std::vector<uint8_t> &bitmapData, TextStri
 		uint32_t *bitmapData32 = (uint32_t *)&bitmapData[0];
 		for (int y = 0; y < entry.bmHeight; y++) {
 			for (int x = 0; x < entry.bmWidth; x++) {
-				uint32_t v = jimage[imageWidth * y + x];
+				uint32_t v = pixels[imageWidth * y + x];
 				// Swap R and B, for some reason.
 				v = (v & 0xFF00FF00) | ((v >> 16) & 0xFF) | ((v << 16) & 0xFF0000);
 				bitmapData32[entry.bmWidth * y + x] = v;
@@ -244,6 +241,7 @@ bool TextDrawerOHOS::DrawStringBitmap(std::vector<uint8_t> &bitmapData, TextStri
 	} else {
 		_assert_msg_(false, "Bad TextDrawer format");
 	}
+	free(pixels);
 	return true;
 }
 

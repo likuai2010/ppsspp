@@ -1,7 +1,8 @@
 import { display, promptAction, window } from '@kit.ArkUI';
 import { common, Context, UIAbility } from '@kit.AbilityKit';
-import napi,{ NativeApi } from 'libppsspp_core.so'
+import napi, { NativeApi } from 'libppsspp_core.so'
 import { picker } from '@kit.CoreFileKit';
+import { translateAxis, translateController, translateKeyboard } from './constants.ts';
 
 const ppsspp = napi as NativeApi
 
@@ -10,7 +11,7 @@ class PPSSPPService{
 	init(context: Context){
 		this.context = context
 		ppsspp.native_init(context.resourceDir, context.filesDir, context.cacheDir)
-		ppsspp?.onPostCommand((c,p)=>{ this.processCommand(c,p) })
+		ppsspp?.onPostCommand((c:string, p: string)=>{ this.processCommand(c,p) })
 		this.updateDisplayParameters()
 
 		setTimeout(()=>{
@@ -64,7 +65,7 @@ class PPSSPPService{
 				this.context?.getApplicationContext().killAllProcesses()
 			}
 			if(command == 'rotate'){
-				const rotString = ppsspp.queryConfig("screenRotation")
+				const  rotString: string = ppsspp.queryConfig("screenRotation")
 				this.changeOrientation(rotString)
 			}
 			if(command.startsWith("browse_folder")){
@@ -136,6 +137,44 @@ class PPSSPPService{
 				ppsspp.setDisplayParameters(displayClass?.width, displayClass?.height, displayClass?.densityDPI, displayClass?.refreshRate)
 		} catch (exception) {
 			console.error('Failed to obtain the default display object. Code: ' + JSON.stringify(exception));
+		}
+	}
+	onEvent(event: KeyEvent){
+		// DEVICE_ID_KEYBOARD 1
+		let code = 0;
+		let deviceId = 0;
+		if(event.keySource == KeySource.Keyboard){
+			deviceId = 1
+			code = translateKeyboard(event.keyCode);
+		}else {
+			deviceId = event.deviceId
+			code = translateController(event.keyCode);
+		}
+		if(event.type == KeyType.Up){
+			ppsspp.keyUp(deviceId, code);
+		}else{
+			ppsspp.keyDown(deviceId, code, false);
+		}
+	}
+	onFocusAxisEvent(event: FocusAxisEvent){
+		// DEVICE_ID_PAD_0 10
+		let deviceId = event.deviceId
+		let axisIds: number[] = []
+		let values: number[] = []
+		for(const key of event.axisMap.keys()){
+			const id = translateAxis(key)
+			const value = event.axisMap.get(key)
+			if(value){
+				axisIds.push(id)
+				values.push(value)
+			}
+		}
+		ppsspp.joystickAxis(deviceId, axisIds, values, axisIds.length);
+	}
+	onBackPress(){
+		if(!ppsspp.isAtTopLevel()){
+			ppsspp?.keyDown(0, 4, false)
+			ppsspp?.keyUp(0, 4)
 		}
 	}
 }
