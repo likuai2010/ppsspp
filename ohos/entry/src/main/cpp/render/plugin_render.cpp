@@ -75,24 +75,19 @@ void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window)
 
 void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window)
 {
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "Callback", "OnSurfaceDestroyedCB");
     if ((nullptr == component) || (nullptr == window)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Callback",
-            "OnSurfaceDestroyedCB: component or window is null");
         return;
     }
 
     char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = { '\0' };
     uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
     if (OH_NATIVEXCOMPONENT_RESULT_SUCCESS != OH_NativeXComponent_GetXComponentId(component, idStr, &idSize)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Callback",
-            "OnSurfaceDestroyedCB: Unable to get XComponent id");
         return;
     }
-
     std::string id(idStr);
     PluginRender::Release(id);
 }
+static std::unordered_map<int, int> idState;
 
 void DispatchTouchEventCB(OH_NativeXComponent *component, void *window)
 {
@@ -112,23 +107,36 @@ void DispatchTouchEventCB(OH_NativeXComponent *component, void *window)
     }
     OH_NativeXComponent_TouchEvent touchEvent;
     
-    OH_NativeXComponent_GetTouchEvent(component,window, &touchEvent);
+    OH_NativeXComponent_GetTouchEvent(component, window, &touchEvent);
+	 
      for (int i = 0; i < touchEvent.numPoints; i++) {
         OH_NativeXComponent_TouchPoint point = touchEvent.touchPoints[i];
+		if (point.type == OH_NATIVEXCOMPONENT_DOWN || point.type == OH_NATIVEXCOMPONENT_UP){
+			 auto it = idState.find(point.id);
+			 if (it != idState.end()) {
+				// 已存在记录
+				if (it->second == point.type) {
+					continue;
+				} 
+			}
+            idState[point.id] = point.type;
+		}
+		
         int code = point.type;
         switch (touchEvent.type) { 
             case OH_NATIVEXCOMPONENT_DOWN:
             code = 2;
+			OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "xxxtouchUp", "down %{public}d, x:  %{public}f id: %{public}d", touchEvent.numPoints, point.x, point.id);
             break;
             case OH_NATIVEXCOMPONENT_UP:
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "xxxtouchUp", "count %{public}d, type:  %{public}d id: %{public}d", touchEvent.numPoints, point.type, point.id);
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "xxxtouchUp", "up %{public}d, x:  %{public}f id: %{public}d %{public}d", point.type, point.x, point.id, point.isPressed ? 1 : 0);
             code = 4;
             break;
             case OH_NATIVEXCOMPONENT_MOVE:
             code = 1;
             break;
             default:
-                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "xxxtouchUp", "count %{public}d, type:  %{public}d id: %{public}d", touchEvent.numPoints, point.type, point.id);
+               // OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "xxxtouchUp", "count %{public}d, type:  %{public}d id: %{public}d", touchEvent.numPoints, point.type, point.id);
 				break;
         }
         if (code != 0) {

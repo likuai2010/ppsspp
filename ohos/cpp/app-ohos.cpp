@@ -307,8 +307,8 @@ static void EmuThreadStart(napi_env env) {
 void touchHandle(float x, float y, int code, int pointerId){
     TouchInput touch;
     touch.id = pointerId;
-    touch.x = x * g_display.dpi_scale;
-    touch.y = y * g_display.dpi_scale;
+    touch.x = x * g_display.dpi_scale * display_scale;
+    touch.y = y * g_display.dpi_scale * display_scale;
     touch.flags = code;
     NativeTouch(touch);
 }

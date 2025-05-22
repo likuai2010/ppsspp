@@ -47,7 +47,7 @@ class PPSSPPService{
 		ppsspp.sendRequestResult(seqID, result, value, iValue)
 	}
 	processCommand(command:string, params: string){
-			promptAction.showToast({message: "cmd: " + command})
+			// promptAction.showToast({message: "cmd: " + command})
 			if (command.startsWith("inputbox")) {
 				emitter.emit({eventId: 100000}, {data: {params}});
 				return;
