@@ -373,7 +373,13 @@ void VulkanQueueRunner::RunSteps(std::vector<VKRStep *> &steps, int curFrame, Fr
 				// So only acquire once.
 				if (!frameData.hasAcquired) {
 					frameData.AcquireNextImage(vulkan_);
+#if PPSSPP_PLATFORM(OHOS)
+					if (frameData.curSwapchainImage < framebuffers_.size()) {
+						SetBackbuffer(framebuffers_[frameData.curSwapchainImage], swapchainImages_[frameData.curSwapchainImage].image);
+					}
+#else
 					SetBackbuffer(framebuffers_[frameData.curSwapchainImage], swapchainImages_[frameData.curSwapchainImage].image);
+#endif
 				}
 
 				if (!frameData.hasPresentCommands) {

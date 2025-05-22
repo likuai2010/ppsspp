@@ -1,10 +1,29 @@
 import { display, promptAction, window } from '@kit.ArkUI';
-import { common, Context, UIAbility } from '@kit.AbilityKit';
+import { common, Context, UIAbility, Want } from '@kit.AbilityKit';
 import napi, { NativeApi } from 'libppsspp_core.so'
 import { picker } from '@kit.CoreFileKit';
 import { translateAxis, translateController, translateKeyboard } from './constants.ts';
+import { emitter } from '@kit.BasicServicesKit';
+import { Event } from '@kit.ArkTS';
 
 const ppsspp = napi as NativeApi
+
+
+export async function toBrowsable(context: Context, uri: string = "https://moonlight-xiaobai.com/query/student") {
+	try {
+		let want: Want = {
+			// uncomment line below if wish to implicitly query only in the specific bundle.
+			// bundleName: "com.example.myapplication",
+			"action": "ohos.want.action.viewData",
+			// entities can be omitted.
+			"entities": [ "entity.system.browsable" ],
+			"uri": uri,
+			"type": "text/plain"
+		}
+		await (context as common.UIAbilityContext).startAbility(want)
+	} catch (error) {
+	}
+}
 
 class PPSSPPService{
 	context?: Context
@@ -22,19 +41,44 @@ class PPSSPPService{
 				this.sendSafeInsets()
 			});
 			this.changeOrientation("0")
-		}, 2000)
+		}, 3000)
 	}
-	processCommand(command:string, params:string){
-			console.log("onPostCommand: ", command, params)
+	sendRequestResult(seqID: number, result: boolean, value: string, iValue: number){
+		ppsspp.sendRequestResult(seqID, result, value, iValue)
+	}
+	processCommand(command:string, params: string){
+			promptAction.showToast({message: "cmd: " + command})
+			if (command.startsWith("inputbox")) {
+				emitter.emit({eventId: 100000}, {data: {params}});
+				return;
+			}
+			if (command.startsWith("browse_image")) {
+				let documentPicker = new picker.DocumentViewPicker(this.context!);
+				let documentSelectOptions = new picker.DocumentSelectOptions();
+				documentSelectOptions.maxSelectNumber = 1;
+				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
+					if(documentSelectResult.length > 0){
+						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
+					}
+				})
+				return;
+			}
+			if (command.startsWith("camera_command")) {
+
+				return;
+			}
+			if (command.startsWith("share_text")) {
+				return;
+			}
 			if (command.startsWith("launchBrowser")) {
+				toBrowsable(this.context!, params)
 				return;
 			}
-			if (command.startsWith("launchEmail")) {
-				return;
-			}
+
 			if(command.startsWith("browse_file") || command.startsWith("browse_file_audio") || command.startsWith("browse_file_zip")){
 				let documentPicker = new picker.DocumentViewPicker(this.context!);
 				let documentSelectOptions = new picker.DocumentSelectOptions();
+				documentSelectOptions.maxSelectNumber = 1;
 				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
 					if(documentSelectResult.length > 0){
 						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
@@ -58,7 +102,7 @@ class PPSSPPService{
 						bundleName: 'com.xiaobai.ppsspp',
 						abilityName: 'EntryAbility'
 					})
-				}, 2000)
+				}, 500)
 
 			}
 			if (command === "finish" ) {
@@ -171,11 +215,13 @@ class PPSSPPService{
 		}
 		ppsspp.joystickAxis(deviceId, axisIds, values, axisIds.length);
 	}
-	onBackPress(){
+	onBackPress() : boolean{
 		if(!ppsspp.isAtTopLevel()){
 			ppsspp?.keyDown(0, 4, false)
 			ppsspp?.keyUp(0, 4)
+			return true;
 		}
+		return false;
 	}
 }
 

@@ -441,7 +441,7 @@ void LogManager::StdioLog(const LogMessage &message) {
 			mode = OHOS::LOG_INFO;
 			break;
 		}
-        OHOS::OH_LOG_Print(OHOS::LOG_APP, OHOS:: LOG_INFO, 0xFF00, "PPSSPP", "EARLY: %{public}s", message.msg.c_str());
+        OHOS::OH_LOG_Print(OHOS::LOG_APP, (OHOS::LogLevel) mode , 0xFF00, "PPSSPP", "%{public}s %{public}s", message.header, message.msg.c_str());
 #else
 	std::lock_guard<std::mutex> lock(stdioLock_);
 	char text[2048];

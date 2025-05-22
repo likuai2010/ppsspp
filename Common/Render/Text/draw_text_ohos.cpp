@@ -29,7 +29,7 @@ Point MeasureLine(std::string str, float textScale){
     OH_Drawing_TextBlobDestroy(textBlob);
     OH_Drawing_FontDestroy(font);
     OH_Drawing_RectDestroy(rect);
-    return { right, -top + 10  };
+    return { right, -top + 8  };
 }
 std::vector<std::string> SplitString(std::string text){
     text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
@@ -89,7 +89,7 @@ int* RenderString(Point wh, std::string str, float textSize) {
         OH_Drawing_Rect* rect = OH_Drawing_RectCreate(0, 0, 0, 0);
         OH_Drawing_TextBlobGetBounds(textBlob, rect);
         int top = OH_Drawing_RectGetTop(rect);
-        y += -top;
+        y += (-top + 5);
         OH_Drawing_CanvasDrawTextBlob(cCanvas_, textBlob, 0, y);
         OH_Drawing_TextBlobDestroy(textBlob);
         OH_Drawing_FontDestroy(font);

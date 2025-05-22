@@ -5,31 +5,8 @@
 #include <string_view>
 
 #include "Common/File/DirListing.h"
+#include "File/AndroidStorage.h"
 
-// To emphasize that OHOS storage mode strings are different, let's just use
-// an enum.
-enum class OHOS_OpenContentUriMode {
-	READ = 0,  // "r"
-	READ_WRITE = 1,  // "rw"
-	READ_WRITE_TRUNCATE = 2,  // "rwt"
-};
-
-// Matches the constants in PpssppActivity.java.
-enum class StorageError {
-	SUCCESS = 0,
-	UNKNOWN = -1,
-	NOT_FOUND = -2,
-	DISK_FULL = -3,
-	ALREADY_EXISTS = -4,
-};
-
-inline StorageError StorageErrorFromInt(int ival) {
-	if (ival >= 0) {
-		return StorageError::SUCCESS;
-	} else {
-		return (StorageError)ival;
-	}
-}
 
 extern std::string g_extFilesDir;
 extern std::string g_externalDir;
@@ -37,8 +14,14 @@ extern std::string g_nativeLibDir;
 
 #if PPSSPP_PLATFORM(OHOS) && !defined(__LIBRETRO__)
 
+enum class OHOS_OpenContentUriMode {
+	READ = 0,  // "r"
+	READ_WRITE = 1,  // "rw"
+	READ_WRITE_TRUNCATE = 2,  // "rwt"
+};
+
 bool OHOS_IsContentUri(std::string_view uri);
-int OHOS_OpenContentUriFd(std::string_view uri, const OHOS_OpenContentUriMode mode);
+int OHOS_OpenContentUriFd(std::string uri, const OHOS_OpenContentUriMode mode);
 StorageError OHOS_CreateDirectory(const std::string &parentTreeUri, const std::string &dirName);
 StorageError OHOS_CreateFile(const std::string &parentTreeUri, const std::string &fileName);
 StorageError OHOS_MoveFile(const std::string &fileUri, const std::string &srcParentUri, const std::string &destParentUri);

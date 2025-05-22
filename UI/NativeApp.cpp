@@ -711,6 +711,9 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 #if PPSSPP_PLATFORM(ANDROID)
 	// Stdio is used for Android logging too.
 	g_logManager.EnableOutput(LogOutput::Stdio);
+#elif PPSSPP_PLATFORM(OHOS)
+	// Stdio is used for Android logging too.
+	g_logManager.EnableOutput(LogOutput::Stdio);
 #elif (defined(MOBILE_DEVICE) && !defined(_DEBUG))
 	// Enable basic logging for any kind of mobile device, since LogManager doesn't.
 	// The MOBILE_DEVICE/_DEBUG condition matches LogManager.cpp.

@@ -130,7 +130,6 @@ static bool sustainedPerfSupported = false;
 static std::map<SystemPermission, PermissionStatus> permissions;
 
 
-
 #ifndef LOG_APP_NAME
 #define LOG_APP_NAME "PPSSPP"
 #endif
@@ -155,84 +154,37 @@ bool canJit(){
     }
 }
 
-//void OHOSLogger::Log(const LogMessage &message)  {
-//    OHOS::LogLevel mode;
-//    switch (message.level) {
-//    case LogLevel::LWARNING:
-//        mode = OHOS::LOG_WARN;
-//        break;
-//    case LogLevel::LERROR:
-//        mode =  OHOS::LOG_ERROR;
-//        break;
-//    default:
-//        mode = OHOS::LOG_INFO;
-//        break;
-//    }
-//
-//    // Long log messages need splitting up.
-//    // Not sure what the actual limit is (seems to vary), but let's be conservative.
-//    const size_t maxLogLength = 512;
-//    if (message.msg.length() < maxLogLength) {
-//        // Log with simplified headers as Android already provides timestamp etc.
-//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log, message.msg.c_str());
-//    } else {
-//        std::string msg = message.msg;
-//
-//        // Ideally we should split at line breaks, but it's at least fairly usable anyway.
-//        std::string first_part = msg.substr(0, maxLogLength);
-//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "[%{public}s] %{public}s", message.log,
-//                           first_part.c_str());
-//        msg = msg.substr(maxLogLength);
-//
-//        while (msg.length() > maxLogLength) {
-//            std::string first_part = msg.substr(0, maxLogLength);
-//            OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s",
-//                               first_part.c_str());
-//            msg = msg.substr(maxLogLength);
-//        }
-//        // Print the final part.
-//        OHOS::OH_LOG_Print(OHOS::LOG_APP, mode, 0xFF00, LOG_APP_NAME, "%{public}s", msg.c_str());
-//    }
-//}
-
 
 static OHOSGraphicsContext *graphicsContext;
 
 
 static  napi_threadsafe_function postCommand_tsfn;
-
+static  FrameCommand FrameCommandInfo;
 
 static void ProcessFrameCommands() {
-	while (!frameCommands.empty()) {
-		FrameCommand frameCmd;
-		frameCmd = frameCommands.front();
-		INFO_LOG(Log::System, "frameCommand '%s' '%s'", frameCmd.command.c_str(), frameCmd.params.c_str());
-        frameCommands.pop();
-        FrameCommand* thread_data = (FrameCommand*)malloc(sizeof(FrameCommand));
-        memcpy(&thread_data->command, &frameCmd.command, frameCmd.command.size() + 1);
-        memcpy(&thread_data->params, &frameCmd.params, frameCmd.params.size() + 1);
-        if(postCommand_tsfn){
-            napi_call_threadsafe_function(postCommand_tsfn, thread_data, napi_tsfn_nonblocking);
-        }
-	}
+	napi_call_threadsafe_function(postCommand_tsfn, &FrameCommandInfo, napi_tsfn_nonblocking);
+	
 }
 static void CallPostCommand(napi_env env, napi_value jsCb, void *context, void *data){
     napi_value params[2];
-    FrameCommand* frameCmd = (FrameCommand *)data;
-    napi_create_string_utf8(env, frameCmd->command.c_str(), frameCmd->command.size(), &params[0]);
-    napi_create_string_utf8(env, frameCmd->params.c_str(), frameCmd->params.size(), &params[1]);
-    napi_call_function(env, nullptr, jsCb, 2, params, nullptr);
-    
-    free(frameCmd);
+	while (!frameCommands.empty()) {
+		if(!frameCommands.empty()){
+			FrameCommand frameCmd = frameCommands.front();
+			INFO_LOG(Log::System, "frameCommand '%s' '%s'", frameCmd.command.c_str(), frameCmd.params.c_str());
+			napi_create_string_utf8(env, frameCmd.command.c_str(), frameCmd.command.size(), &params[0]);
+			napi_create_string_utf8(env, frameCmd.params.c_str(), frameCmd.params.size(), &params[1]);
+			napi_call_function(env, nullptr, jsCb, 2, params, nullptr);
+			frameCommands.pop();
+		}
+	}
 }
 
 static napi_value onPostCommand(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value jsCb = nullptr;
     napi_get_cb_info(env, info, &argc, &jsCb, nullptr, nullptr);
-     // 创建一个线程安全函数
     napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "Thread-safe Function postCommand", NAPI_AUTO_LENGTH, &resourceName);
+    napi_create_string_latin1(env, " postCommand", NAPI_AUTO_LENGTH, &resourceName);
     napi_create_threadsafe_function(env, jsCb, nullptr, resourceName, 0, 1, nullptr, nullptr, nullptr, CallPostCommand, &postCommand_tsfn);
     return nullptr;
 }
@@ -1082,11 +1034,8 @@ static napi_value sendRequestResult(napi_env env, napi_callback_info info) {
     napi_get_value_string_utf8(env, params[2], nullptr, 0, &length);
     char *buf = (char *)malloc(length + 1);
     napi_get_value_string_utf8(env, params[2], buf, length + 1 , NULL);
-    if(length == 0){
-        buf = "(no value)";
-    }
-    int result;
-    napi_get_value_int32(env, params[1], &result);
+    bool result;
+	napi_get_value_bool(env, params[1], &result);
     int requestID;
     napi_get_value_int32(env, params[0], &requestID);
     if (result) {

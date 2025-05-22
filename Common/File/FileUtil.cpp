@@ -15,6 +15,9 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+
+
+
 #if defined(_MSC_VER)
 #pragma warning(disable:4091)  // workaround bug in VS2015 headers
 #ifndef UNICODE
@@ -81,6 +84,10 @@
 
 #include <sys/stat.h>
 
+#if PPSSPP_PLATFORM(OHOS)
+#include "File/OHOSStorage.h"
+#endif
+
 // NOTE: There's another one in DirListing.cpp.
 #ifdef _WIN32
 constexpr bool SIMULATE_SLOW_IO = false;
@@ -120,6 +127,60 @@ FILE *OpenCFile(const Path &path, const char *mode) {
 	switch (path.Type()) {
 	case PathType::NATIVE:
 		break;
+#if PPSSPP_PLATFORM(OHOS)
+	case PathType::FILE_URI:
+		// We're gonna need some error codes..
+		if (!strcmp(mode, "r") || !strcmp(mode, "rb") || !strcmp(mode, "rt")) {
+			INFO_LOG(Log::IO, "Opening content file for read: '%s'", path.c_str());
+			// Read, let's support this - easy one.
+			int descriptor = OHOS_OpenContentUriFd(path.ToString(), OHOS_OpenContentUriMode::READ);
+			if (descriptor < 0) {
+				return nullptr;
+			}
+			return fdopen(descriptor, "rb");
+		} else if (!strcmp(mode, "w") || !strcmp(mode, "wb") || !strcmp(mode, "wt") || !strcmp(mode, "at") || !strcmp(mode, "a")) {
+			// Need to be able to create the file here if it doesn't exist.
+			// Not exactly sure which abstractions are best, let's start simple.
+			if (!File::Exists(path)) {
+				INFO_LOG(Log::IO, "OpenCFile(%s): Opening content file for write. Doesn't exist, creating empty and reopening.", path.c_str());
+				std::string name = path.GetFilename();
+				if (path.CanNavigateUp()) {
+					Path parent = path.NavigateUp();
+					if (OHOS_CreateFile(parent.ToString(), name) != StorageError::SUCCESS) {
+						WARN_LOG(Log::IO, "Failed to create file '%s' in '%s'", name.c_str(), parent.c_str());
+						return nullptr;
+					}
+				} else {
+					INFO_LOG(Log::IO, "Failed to navigate up to create file: %s", path.c_str());
+					return nullptr;
+				}
+			} else {
+				INFO_LOG(Log::IO, "OpenCFile(%s): Opening existing content file for write (truncating). Requested mode: '%s'", path.c_str(), mode);
+			}
+			// TODO: Support append modes and stuff... For now let's go with the most common one.
+			OHOS_OpenContentUriMode openMode = OHOS_OpenContentUriMode::READ_WRITE_TRUNCATE;
+			const char *fmode = "wb";
+			if (!strcmp(mode, "at") || !strcmp(mode, "a")) {
+				openMode = OHOS_OpenContentUriMode::READ_WRITE;
+				fmode = "ab";
+			}
+			int descriptor = OHOS_OpenContentUriFd(path.ToString(), openMode);
+			if (descriptor < 0) {
+				INFO_LOG(Log::IO, "Opening '%s' for write failed", path.ToString().c_str());
+				return nullptr;
+			}
+			FILE *f = fdopen(descriptor, fmode);
+			if (f && (!strcmp(mode, "at") || !strcmp(mode, "a"))) {
+				// Append mode - not sure we got a "true" append mode, so seek to the end.
+				fseek(f, 0, SEEK_END);
+			}
+			return f;
+		} else {
+			ERROR_LOG(Log::IO, "OpenCFile(%s): Mode not yet supported: %s", path.c_str(), mode);
+			return nullptr;
+		}
+		break;
+#endif
 	case PathType::CONTENT_URI:
 		// We're gonna need some error codes..
 		if (!strcmp(mode, "r") || !strcmp(mode, "rb") || !strcmp(mode, "rt")) {
@@ -428,7 +489,9 @@ bool Exists(const Path &path) {
 	if (path.Type() == PathType::CONTENT_URI) {
 		return Android_FileExists(path.c_str());
 	}
-
+	if (path.Type() == PathType::FILE_URI) {
+		return OHOS_FileExists(path.c_str());
+	}
 #if defined(_WIN32)
 
 	// Make sure Windows will no longer handle critical errors, which means no annoying "No disk" dialog
@@ -746,6 +809,19 @@ bool Copy(const Path &srcFilename, const Path &destFilename) {
 			// Else fall through, and try using file I/O.
 		}
 		break;
+#if PPSSPP_PLATFORM(OHOS)
+	case PathType::FILE_URI:
+		if (destFilename.Type() == PathType::CONTENT_URI && destFilename.CanNavigateUp()) {
+			Path destParent = destFilename.NavigateUp();
+			// Use native file copy.
+			if (OHOS_CopyFile(srcFilename.ToString(), destParent.ToString()) == StorageError::SUCCESS) {
+				return true;
+			}
+			INFO_LOG(Log::IO, "Android_CopyFile failed, falling back.");
+			// Else fall through, and try using file I/O.
+		}
+		break;
+#endif
 	default:
 		return false;
 	}
@@ -891,6 +967,18 @@ uint64_t GetFileSize(const Path &filename) {
 			}
 		}
 		break;
+#if PPSSPP_PLATFORM(OHOS)
+	case PathType::FILE_URI:
+		{
+			FileInfo info;
+			if (OHOS_GetFileInfo(filename.ToString(), &info)) {
+				return info.size;
+			} else {
+				return 0;
+			}
+		}
+		break;
+#endif
 	default:
 		return false;
 	}
@@ -995,6 +1083,10 @@ bool DeleteDir(const Path &path) {
 		break; // OK
 	case PathType::CONTENT_URI:
 		return Android_RemoveFile(path.ToString()) == StorageError::SUCCESS;
+#if PPSSPP_PLATFORM(OHOS)
+	case PathType::FILE_URI:
+		return OHOS_RemoveFile(path.ToString()) == StorageError::SUCCESS;
+#endif
 	default:
 		return false;
 	}

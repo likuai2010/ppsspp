@@ -4,7 +4,6 @@
 #include "Common/StringUtils.h"
 #include "Common/Log.h"
 #include <fcntl.h>
-#include "Common/TimeUtil.h"
 #if PPSSPP_PLATFORM(OHOS)
 #include "ohos/cpp/app-ohos.h"
 #include <filemanagement/file_uri/oh_file_uri.h>
@@ -13,13 +12,14 @@
 #if PPSSPP_PLATFORM(OHOS) && !defined(__LIBRETRO__)
 
 
+#include "File/OHOSStorage.h"
+
 bool OHOS_IsContentUri(std::string_view filename) {
 	return startsWith(filename, "file://");
 }
 
 
-int OHOS_OpenContentUriFd(std::string_view filename, OHOS_OpenContentUriMode mode) {
-    std::string fname(filename);
+int OHOS_OpenContentUriFd(std::string fname, OHOS_OpenContentUriMode mode) {
     char * path;
     OH_FileUri_GetPathFromUri(fname.c_str(), fname.size(), &path);
     int openMode = 0;
