@@ -78,6 +78,7 @@ struct Index {
       .width('100%')
       .height('100%')
     }
+		.onTouch((e) => PPSSPPService.onTouch(e, this.getUIContext()))
 		.key("onKeyEvent")
 		.focusable(true)
 		.defaultFocus(true)

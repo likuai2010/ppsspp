@@ -2,6 +2,7 @@
 export interface NativeApi{
   native_init: (assetsPath: string, appPath: string, cachePath: string) => void;
   sendMessage: (msg: string, prm: string) => void;
+	sendTouchEvent: (x: number, y: number, code: number, pointerId: number) => void;
   onPostCommand:(cal:(c: string, p: string )=>void) => void;
   sendRequestResult:(seqID: number, result: boolean, value: string, iValue: number) => void;
   setDisplayParameters:(display_xres: number , display_yres: number,dpi:number , refreshRate: number) =>void;

@@ -303,15 +303,6 @@ static void EmuThreadStart(napi_env env) {
 	emuThread = std::thread(&EmuThreadFunc, env);
 }
 
-// touch handle
-void touchHandle(float x, float y, int code, int pointerId){
-    TouchInput touch;
-    touch.id = pointerId;
-    touch.x = x * g_display.dpi_scale * display_scale;
-    touch.y = y * g_display.dpi_scale * display_scale;
-    touch.flags = code;
-    NativeTouch(touch);
-}
 
 
 
@@ -1100,7 +1091,24 @@ static napi_value keyUp(napi_env env, napi_callback_info info) {
     napi_get_boolean(env, result,&jsResult);
     return jsResult;
 }
+
+napi_value touchHandle(napi_env env, napi_callback_info info){
+	GET_NAPI_ARGS(env, info, 4)
+	GET_NAPI_ARG(float, x, env, args[0])
+	GET_NAPI_ARG(float, y, env, args[1])
+	GET_NAPI_ARG(int32_t, code, env, args[2])
+	GET_NAPI_ARG(int32_t, pointerId, env, args[3])
+    TouchInput touch;
+    touch.id = pointerId;
+    touch.x = x * display_scale * g_display.dpi_scale ;
+    touch.y = y * display_scale *  g_display.dpi_scale ;
+    touch.flags = code;
+    NativeTouch(touch);
+	return nullptr;
+}
+
 static napi_value joystickAxis(napi_env env, napi_callback_info info) {
+	
     size_t argc = 4;
     napi_value params[4];
     napi_get_cb_info(env, info, &argc, params, nullptr, nullptr);
@@ -1343,6 +1351,7 @@ void ExportApi(napi_env env, napi_value exports){
         { "sendMessage", nullptr, sendMessage, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "keyDown", nullptr, keyDown, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "keyUp", nullptr, keyUp, nullptr, nullptr, nullptr, napi_default, nullptr },
+	  	{ "sendTouchEvent", nullptr, touchHandle, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "joystickAxis", nullptr, joystickAxis, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "mouseWheelEvent", nullptr, mouseWheelEvent, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "mouseDelta", nullptr, mouseDelta, nullptr, nullptr, nullptr, napi_default, nullptr },

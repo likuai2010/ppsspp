@@ -4,7 +4,8 @@ import napi, { NativeApi } from 'libppsspp_core.so'
 import { picker } from '@kit.CoreFileKit';
 import { translateAxis, translateController, translateKeyboard } from './constants.ts';
 import { emitter } from '@kit.BasicServicesKit';
-import { Event } from '@kit.ArkTS';
+import { Event, JSON } from '@kit.ArkTS';
+import json from '@ohos.util.json';
 
 const ppsspp = napi as NativeApi
 
@@ -41,6 +42,7 @@ class PPSSPPService{
 				this.sendSafeInsets()
 			});
 			this.changeOrientation("0")
+			this.sendSafeInsets()
 		}, 3000)
 	}
 	sendRequestResult(seqID: number, result: boolean, value: string, iValue: number){
@@ -181,6 +183,28 @@ class PPSSPPService{
 				ppsspp.setDisplayParameters(displayClass?.width, displayClass?.height, displayClass?.densityDPI, displayClass?.refreshRate)
 		} catch (exception) {
 			console.error('Failed to obtain the default display object. Code: ' + JSON.stringify(exception));
+		}
+	}
+	onTouch(event: TouchEvent, ui: UIContext){
+		// DEVICE_ID_KEYBOARD 1
+		for (let point of event.changedTouches){
+				let code = 0;
+				switch (point.type){
+					case TouchType.Down:
+						code = 2;
+						break;
+					case TouchType.Up:
+						code = 4;
+						break;
+					case TouchType.Move:
+						code = 1;
+						break;
+				}
+				if(code != 0){
+					const x = ui.vp2px(point.x)
+					const y = ui.vp2px(point.y)
+					ppsspp.sendTouchEvent(x, y, code, point.id)
+				}
 		}
 	}
 	onEvent(event: KeyEvent){

@@ -1,4 +1,5 @@
 
+#include <arm_neon.h>
 #include <napi/native_api.h>
 #include <cstdint>
 #include <string>
@@ -48,6 +49,12 @@ public:
         int32_t i;
         NAPI_RETURN_IF_NOT_OK(napi_get_value_int32(env, value, &i));
         return i;
+    }
+	template<>
+    std::optional<float32_t> getValue(napi_env env, napi_value value) {
+        double  i;
+        NAPI_RETURN_IF_NOT_OK(napi_get_value_double(env, value, &i));
+        return (float32_t)i;
     }
   	template<>
     std::optional<std::string> getValue(napi_env env, napi_value value) {
