@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "app-ohos.h"
+#include "Core/PSPLoaders.h"
 #include "napi-utils.h"
 #include "File/VFS/DirectoryReader.h"
 #include "OHOSGraphicsContext.h"
@@ -305,7 +306,10 @@ static void EmuThreadStart(napi_env env) {
 
 
 
-
+static void PushCommand(std::string cmd, std::string param) {
+	std::lock_guard<std::mutex> guard(frameCommandLock);
+	frameCommands.push(FrameCommand(cmd, param));
+}
 
 
 struct BridgeCallbackInfo {
@@ -315,7 +319,7 @@ struct BridgeCallbackInfo {
     void* window;
 };
 
-void VulkanEmuThread(void *wnd){
+void EmuRenderThread(void *wnd){
     SetCurrentThreadName("EmuThread");
 	if (!graphicsContext) {
 		ERROR_LOG(Log::G3D, "runVulkanRenderLoop: Tried to enter without a created graphics context.");
@@ -392,16 +396,14 @@ void VulkanEmuThread(void *wnd){
 }
 
 
-
 void DisplayRender(void * window) {
     if(renderer_inited)
         return ;
     INFO_LOG(Log::G3D, "Starting Vulkan submission thread");
     g_Config.bRenderMultiThreading = true;
-    vulkanEmuThread = std::thread(&VulkanEmuThread, window);
+    vulkanEmuThread = std::thread(&EmuRenderThread, window);
+
 }
-
-
 
 
 // Call EmuThreadStop first, then keep running the GPU (or eat commands)
@@ -418,15 +420,7 @@ static void EmuThreadJoin() {
 	INFO_LOG(Log::System, "EmuThreadJoin - joined");
 }
 
-static void PushCommand(std::string cmd, std::string param) {
-	std::lock_guard<std::mutex> guard(frameCommandLock);
-	frameCommands.push(FrameCommand(cmd, param));
-}
 
-// OHOS implementation of callbacks to the ArkTs part of the app
-void System_Toast(const char *text) {
-	PushCommand("toast", text);
-}
 
 void System_ShowKeyboard() {
 	PushCommand("showKeyboard", "");
@@ -719,9 +713,6 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
             g_Config.iGPUBackend = 0;
         }
     #endif
-    // force vulkan 
-//     g_Config.iGPUBackend = (int)GPUBackend::VULKAN;
-    // No need to use EARLY_LOG anymore.
    
     retry:
     	switch (g_Config.iGPUBackend) {
@@ -988,27 +979,26 @@ static napi_value queryConfig(napi_env env, napi_callback_info info) {
     return jsResult;
 }
 static napi_value sendMessage(napi_env env, napi_callback_info info){
-    size_t argc = 2;
-    napi_value params[2];
-    napi_get_cb_info(env, info, &argc, params, nullptr, nullptr);
-    size_t length;
-    napi_get_value_string_utf8(env, params[0], nullptr, 0, &length);
-    char *msg = (char *)malloc(length);
-    napi_get_value_string_utf8(env, params[0], msg, length, NULL);
-    napi_get_value_string_utf8(env, params[1], nullptr, 0, &length);
-    char *prm = (char *)malloc(length + 1);
-    napi_get_value_string_utf8(env, params[1], prm, length + 1, NULL);
-    if (strcmp(msg, "safe_insets")) {
-		INFO_LOG(Log::System, "Got insets: %s", prm);
+	GET_NAPI_ARGS(env, info, 2)
+	GET_NAPI_ARG(std::string, msg, env, args[0])
+	GET_NAPI_ARG(std::string, prm, env, args[1])
+    if (msg == "safe_insets") {
+		INFO_LOG(Log::System, "Got insets: %s", prm.c_str());
 		// We don't bother with supporting exact rectangular regions. Safe insets are good enough.
 		int left, right, top, bottom;
-		if (4 == sscanf(prm, "%d:%d:%d:%d", &left, &right, &top, &bottom)) {
+		if (4 == sscanf(prm.c_str(), "%d:%d:%d:%d", &left, &right, &top, &bottom)) {
 			g_safeInsetLeft = (float)left;
 			g_safeInsetRight = (float)right;
 			g_safeInsetTop = (float)top;
 			g_safeInsetBottom = (float)bottom;
 		}
+		
 	}
+	 if (msg == "load_game") {
+		INFO_LOG(Log::System, "load game: %s", prm.c_str());
+		System_PostUIMessage(UIMessage::REQUEST_GAME_BOOT, prm.c_str());
+	}
+	
     return nullptr;
     
 }

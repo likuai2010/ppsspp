@@ -29,12 +29,12 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
 		PPSSPPService.init(this.context)
-		emitter.on({eventId: 200000}, ()=>{
-				let uri = want.uri;
-				if (uri && uri != "") {
-					PPSSPPService.loadFileUrl(uri)
-				}
-		})
+		setTimeout(()=>{
+			let uri = want.uri;
+			if (uri && uri != "") {
+				PPSSPPService.loadFileUrl(uri)
+			}
+		}, 3000)
   }
 	onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
 		super.onNewWant(want, launchParam)

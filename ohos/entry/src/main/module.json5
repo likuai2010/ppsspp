@@ -13,7 +13,7 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
-    "requestPermissions": [  {
+    "requestPermissions": [ {
       "name" : "ohos.permission.INTERNET",
       "usedScene": {
         "abilities": [
@@ -21,7 +21,9 @@
         ],
         "when":"inuse"
       }
-    },
+		}, {
+			"name" : "ohos.permission.READ_WRITE_USER_FILE",
+		},
       {
         "name": "ohos.permission.GET_NETWORK_INFO"
       }
