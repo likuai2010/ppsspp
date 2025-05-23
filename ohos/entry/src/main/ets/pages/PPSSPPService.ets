@@ -48,10 +48,18 @@ class PPSSPPService{
 	sendRequestResult(seqID: number, result: boolean, value: string, iValue: number){
 		ppsspp.sendRequestResult(seqID, result, value, iValue)
 	}
+	loadFileUrl(uri: string){
+		ppsspp?.sendMessage("load_game", uri)
+	}
 	processCommand(command:string, params: string){
 			// promptAction.showToast({message: "cmd: " + command})
 			if (command.startsWith("inputbox")) {
 				emitter.emit({eventId: 100000}, {data: {params}});
+				return;
+			}
+			// gpu渲染线程启动完成
+			if (command.startsWith("Render_loaded")){
+				emitter.emit({eventId: 200000}, {data: {params}});
 				return;
 			}
 			if (command.startsWith("browse_image")) {

@@ -42,7 +42,22 @@
               "entity.system.home"
             ],
             "actions": [
-              "action.system.home"
+              "action.system.home",
+              "ohos.want.action.sendData",
+              "ohos.want.action.viewData"
+            ],
+            "uris": [
+              {
+                "scheme": "file",
+                "type": "general.iso",
+                "linkFeature": "FileOpen",
+                "maxFileSupported": 1
+              },
+              {
+                "scheme": "file",
+                "utd": "general.general",
+                "maxFileSupported": 1
+              },
             ]
           }
         ]

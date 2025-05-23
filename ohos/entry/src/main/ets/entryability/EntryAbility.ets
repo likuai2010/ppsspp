@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import fs from '@ohos.file.fs';
 import PPSSPPService from '../pages/PPSSPPService';
+import { emitter } from '@kit.BasicServicesKit';
 
 
 export async  function readFile(filePath: string): Promise<Uint8Array | null> {
@@ -28,7 +29,20 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
 		PPSSPPService.init(this.context)
+		emitter.on({eventId: 200000}, ()=>{
+				let uri = want.uri;
+				if (uri && uri != "") {
+					PPSSPPService.loadFileUrl(uri)
+				}
+		})
   }
+	onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+		super.onNewWant(want, launchParam)
+		let uri = want.uri;
+		if (uri && uri != "") {
+			PPSSPPService.loadFileUrl(uri)
+		}
+	}
 
   onDestroy(): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onDestroy');
@@ -41,7 +55,6 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
         return;
       }
-
       //
     });
   }

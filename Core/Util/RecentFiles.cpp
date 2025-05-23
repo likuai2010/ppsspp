@@ -233,6 +233,7 @@ void RecentFilesManager::PerformCleanMissing() {
 		Path path(filename);
 		switch (path.Type()) {
 		case PathType::CONTENT_URI:
+		case PathType::FILE_URI:
 		case PathType::NATIVE:
 			exists = File::Exists(path);
 			if (!exists && TryUpdateSavedPath(&path)) {

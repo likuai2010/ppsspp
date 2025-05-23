@@ -43,15 +43,13 @@ void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window)
             "OnSurfaceCreatedCB: Unable to get XComponent id");
         return;
     }
-
     uint64_t width;
     uint64_t height;
-    int32_t xSize = OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
-    PluginRender::window = window;
+	OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
     backbufferResize(width, height, 1);
     setDisplayParameters(width, height);
     computeDesiredBackbufferDimensions();
-    DisplayRender((void *)PluginRender::window);
+    DisplayRender((void *)window);
 }
 
 void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window)
@@ -64,13 +62,11 @@ void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window)
     }
     uint64_t width;
     uint64_t height;
-    int32_t xSize = OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
+    OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
     if(width != 0 && height != 0){
         backbufferResize(width, height, 1);
         setDisplayParameters(width, height);
     }
-   
-    
 }
 
 void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window)
