@@ -1,5 +1,9 @@
 import { KeyCode } from "@kit.InputKit";
-
+export enum VibrateModel {
+	HAPTIC_SOFT_KEYBOARD = -1,
+	HAPTIC_VIRTUAL_KEY = -2,
+	HAPTIC_LONG_PRESS_ACTIVATED = -3,
+};
 export enum InputDeviceID {
   DEVICE_ID_ANY = -1,  // Represents any device ID
   DEVICE_ID_DEFAULT = 0,  // Old Android

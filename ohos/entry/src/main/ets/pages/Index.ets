@@ -1,8 +1,8 @@
 
-import {  mediaquery, } from '@kit.ArkUI';
+import { ImmersiveMode, LevelMode, mediaquery, promptAction, } from '@kit.ArkUI';
 import PPSSPPService from './PPSSPPService';
 import emitter from '@ohos.events.emitter';
-
+import  fs from '@ohos.file.fs';
 
 interface  XComponentAttrs{
   id: string
@@ -18,6 +18,7 @@ struct Index {
 	@State inputText:string = "";
 	@State requestId: number = 0;
 	@State title: string = "";
+	@State progress: fs.Progress = {processedSize:50, totalSize:100} as fs.Progress
   onBackPress() {
     return PPSSPPService.onBackPress()
   }
@@ -33,6 +34,17 @@ struct Index {
 				this.inputText = param[2];
 			this.requestId = requestID;
 		})
+		emitter.on({eventId: 100001},(res)=>{
+			this.title = "正在加载游戏, 请稍等"
+			this.showSheet = true
+		})
+		emitter.on({eventId: 100002},(res)=>{
+			this.progress = res?.data?.["progress"] as fs.Progress
+
+		})
+		emitter.on({eventId: 100003},(res)=>{
+			this.showSheet = false
+		})
   }
   xComponentAttrs: XComponentAttrs = {
     id: 'xcomponentId1',
@@ -43,32 +55,38 @@ struct Index {
 		Column(){
 			Blank().height(20)
 			Row(){
-				TextInput({text: this.inputText, placeholder: "请输入"}).onChange((value)=>{
-					this.inputText = value
-				})
-					.key("input")
-					.enterKeyType(EnterKeyType.Done)
-					.onSubmit(()=>{
+				if(this.progress.processedSize != 0){
+					this.CopyProgress()
+				}else{
+					TextInput({text: this.inputText, placeholder: "请输入"}).onChange((value)=>{
+						this.inputText = value
+					})
+						.key("input")
+						.enterKeyType(EnterKeyType.Done)
+						.onSubmit(()=>{
+							PPSSPPService.sendRequestResult(this.requestId, true, this.inputText, 0);
+							this.showSheet = false;
+						})
+						.onAppear( () => {
+							let fc = context.getFocusController()
+							fc?.requestFocus("input")
+						}).layoutWeight(1)
+					Blank().width(10)
+					Button({ type: ButtonType.Capsule, stateEffect: true }) {
+						Row() {
+							Text('确定').fontSize(12).fontColor(0xffffff).textAlign(TextAlign.Center).layoutWeight(1)
+						}.alignItems(VerticalAlign.Center).width(100).height(40)
+					}.onClick(async () => {
 						PPSSPPService.sendRequestResult(this.requestId, true, this.inputText, 0);
 						this.showSheet = false;
 					})
-					.onAppear( () => {
-						let fc = context.getFocusController()
-						fc?.requestFocus("input")
-				}).layoutWeight(1)
-				Blank().width(10)
-				Button({ type: ButtonType.Capsule, stateEffect: true }) {
-					Row() {
-						Text('确定').fontSize(12).fontColor(0xffffff).textAlign(TextAlign.Center).layoutWeight(1)
-					}.alignItems(VerticalAlign.Center).width(100).height(40)
-				}.onClick(async () => {
-					PPSSPPService.sendRequestResult(this.requestId, true, this.inputText, 0);
-					this.showSheet = false;
-				})
+				}
 			}.padding(10)
 		}
 	}
-
+	@Builder CopyProgress(){
+			Progress({value: this.progress.processedSize, total: this.progress.totalSize })
+	}
   build() {
     Stack({alignContent: Alignment.Center}) {
       XComponent(this.xComponentAttrs).onLoad(() => {
@@ -96,7 +114,7 @@ struct Index {
 			this.InputBox( this.getUIContext()), {
 				height: 300,
 				dragBar: true,
-				title: {title: this.title},
+				title: {title: this.title },
 				shouldDismiss:()=> {
 					PPSSPPService.sendRequestResult(this.requestId, false, "", 0);
 					this.showSheet = false

@@ -76,7 +76,9 @@
               },
               {
                 "scheme": "file",
-                "utd": "general.general",
+			  	"linkFeature": "FileOpen",
+                "utd": "general.octet-stream",
+			  	"type": "general.octet-stream",
                 "maxFileSupported": 1
               },
             ]

@@ -835,6 +835,9 @@ bool System_MakeRequest(SystemRequestType type, int requestId, const std::string
 
 void System_Notify(SystemNotification notification) {
     switch (notification) {
+	case SystemNotification::KEEP_SCREEN_AWAKE:
+        PushCommand("KEEP_SCREEN_AWAKE", "");
+        break;
     case SystemNotification::ROTATE_UPDATED:
         PushCommand("rotate", "");
         break;
@@ -993,11 +996,14 @@ static napi_value sendMessage(napi_env env, napi_callback_info info){
 		}
 		
 	}
-	 if (msg == "load_game") {
+ 	if (msg == "load_game") {
 		INFO_LOG(Log::System, "load game: %s", prm.c_str());
 		System_PostUIMessage(UIMessage::REQUEST_GAME_BOOT, prm.c_str());
 	}
-	
+	if (msg == "PERMISSION_GRANTED") {
+		INFO_LOG(Log::System, "load game: %s", prm.c_str());
+		System_PostUIMessage(UIMessage::PERMISSION_GRANTED, prm.c_str());
+	}
     return nullptr;
     
 }

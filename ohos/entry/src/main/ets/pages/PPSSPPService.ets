@@ -1,15 +1,48 @@
 import { display, promptAction, window } from '@kit.ArkUI';
-import { common, Context, UIAbility, Want } from '@kit.AbilityKit';
+import { common, Context, Want } from '@kit.AbilityKit';
 import napi, { NativeApi } from 'libppsspp_core.so'
-import { picker } from '@kit.CoreFileKit';
-import photo from '@ohos.file.photoAccessHelper';
-
-import { translateAxis, translateController, translateKeyboard } from './constants.ts';
+import { fileIo, picker, fileUri } from '@kit.CoreFileKit';
+import { vibrator } from '@kit.SensorServiceKit';
+import { translateAxis, translateController, translateKeyboard, VibrateModel } from './constants.ts';
 import { emitter } from '@kit.BasicServicesKit';
-import { Event, JSON } from '@kit.ArkTS';
-import json from '@ohos.util.json';
+import { JSON } from '@kit.ArkTS';
 
 const ppsspp = napi as NativeApi
+
+
+export async function getDownloadDir(context: Context): Promise<string>{
+	let filePicker = new picker.DocumentViewPicker(context)
+	let options = new picker.DocumentSaveOptions()
+	options.pickerMode = picker.DocumentPickerMode.DOWNLOAD
+	return (await filePicker.save(options))[0]
+}
+
+
+
+async function loadGamePath(url: string, context: common.Context): Promise<string>{
+	try {
+		let dir = await getDownloadDir(context)
+		let targetUri = dir + "/" + url.split('/').pop()
+		let targetPath = new fileUri.FileUri(targetUri).path
+		if (await fileIo.access(targetPath)){
+			return targetPath;
+		}else{
+			emitter.emit({eventId: 100001});
+			await fileIo.copy(url , targetUri, {
+				progressListener:(p) => {
+					emitter.emit({eventId: 100002}, {data: { progress: p}});
+				}
+			})
+			emitter.emit({eventId: 100003});
+			promptAction.showToast({message: "因沙盒机制, 已复制到下载目录"})
+			return targetPath;
+		}
+	}catch (e) {
+		console.error("e",e)
+		promptAction.showToast({message: e.message})
+	}
+	return "";
+}
 
 
 export async function toBrowsable(context: Context, uri: string = "https://moonlight-xiaobai.com/query/student") {
@@ -30,7 +63,7 @@ export async function toBrowsable(context: Context, uri: string = "https://moonl
 
 class PPSSPPService{
 	context?: Context
-	init(context: Context){
+	async init(context: Context){
 		this.context = context
 		ppsspp.native_init(context.resourceDir, context.filesDir, context.cacheDir)
 		ppsspp?.onPostCommand((c:string, p: string)=>{ this.processCommand(c,p) })
@@ -46,19 +79,52 @@ class PPSSPPService{
 			this.changeOrientation("0")
 			this.sendSafeInsets()
 		}, 3000)
+
 	}
 	sendRequestResult(seqID: number, result: boolean, value: string, iValue: number){
 		ppsspp.sendRequestResult(seqID, result, value, iValue)
 	}
-	loadFileUrl(uri: string){
-		ppsspp?.sendMessage("load_game", uri)
+
+
+	async loadFileUrl(file: string){
+		let uri = file.toLowerCase();
+		if(uri.endsWith(".iso") || uri.endsWith(".cso") || uri.endsWith(".pbp") || uri.endsWith(".elf")|| uri.endsWith(".prx")){
+			const path = await loadGamePath(file, this.context!)
+			ppsspp.sendMessage("load_game", path)
+		}else{
+			promptAction.showToast({message: "不支持当前文件"})
+		}
 	}
-	processCommand(command:string, params: string){
+
+	async authDownloadDir(){
+		let dir = await getDownloadDir(this.context!)
+		if(dir != null){
+			ppsspp.sendMessage("PERMISSION_GRANTED", "storage");
+		}
+
+	}
+	async processCommand(command:string, params: string){
 			// promptAction.showToast({message: "cmd: " + command})
 			if (command.startsWith("inputbox")) {
 				emitter.emit({eventId: 100000}, {data: {params}});
 				return;
 			}
+			if (command.startsWith("KEEP_SCREEN_AWAKE")) {
+				let lastWindow = await window.getLastWindow(this.context!)
+					lastWindow.setWindowKeepScreenOn(true)
+				return;
+			}
+			if (command.startsWith("vibrate")) {
+				vibrator.startVibration({
+					type: 'time',
+					duration: 50,
+				}, {
+					id: 0,
+					usage: 'alarm'
+				});
+				return;
+			}
+
 			// gpu渲染线程启动完成
 			if (command.startsWith("Render_loaded")){
 				emitter.emit({eventId: 200000}, {data: {params}});
@@ -92,9 +158,11 @@ class PPSSPPService{
 				let documentPicker = new picker.DocumentViewPicker(this.context!);
 				let documentSelectOptions = new picker.DocumentSelectOptions();
 				documentSelectOptions.maxSelectNumber = 1;
-				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
+
+				documentPicker.select(documentSelectOptions).then(async (documentSelectResult)=>{
 					if(documentSelectResult.length > 0){
-						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
+						let path = await loadGamePath(documentSelectResult[0], this.context!)
+						ppsspp?.sendRequestResult(parseInt(params), true, path, 0)
 					}
 				})
 			}
@@ -216,7 +284,9 @@ class PPSSPPService{
 				if(code != 0){
 					const x = ui.vp2px(point.x)
 					const y = ui.vp2px(point.y)
-					ppsspp.sendTouchEvent(x, y, code, point.id)
+					// 兼容pc模拟器
+					let id = point.id % 10
+					ppsspp.sendTouchEvent(x, y, code, id)
 				}
 		}
 	}
