@@ -42,7 +42,6 @@ void OpenSLContext::bqPlayerCallbackWrap(SLOHBufferQueueItf bq, void *context, S
 	
 	OpenSLContext *ctx = (OpenSLContext *)context;
 	if(ctx != nullptr){
-		
 		ctx->BqPlayerCallback(bq);
 	}
 }

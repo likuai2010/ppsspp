@@ -2,6 +2,8 @@ import { display, promptAction, window } from '@kit.ArkUI';
 import { common, Context, UIAbility, Want } from '@kit.AbilityKit';
 import napi, { NativeApi } from 'libppsspp_core.so'
 import { picker } from '@kit.CoreFileKit';
+import photo from '@ohos.file.photoAccessHelper';
+
 import { translateAxis, translateController, translateKeyboard } from './constants.ts';
 import { emitter } from '@kit.BasicServicesKit';
 import { Event, JSON } from '@kit.ArkTS';
@@ -62,17 +64,7 @@ class PPSSPPService{
 				emitter.emit({eventId: 200000}, {data: {params}});
 				return;
 			}
-			if (command.startsWith("browse_image")) {
-				let documentPicker = new picker.DocumentViewPicker(this.context!);
-				let documentSelectOptions = new picker.DocumentSelectOptions();
-				documentSelectOptions.maxSelectNumber = 1;
-				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
-					if(documentSelectResult.length > 0){
-						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
-					}
-				})
-				return;
-			}
+
 			if (command.startsWith("camera_command")) {
 
 				return;
@@ -84,7 +76,18 @@ class PPSSPPService{
 				toBrowsable(this.context!, params)
 				return;
 			}
-
+			if (command.startsWith("browse_image")) {
+				// photo.getPhotoAccessHelper(this.context)?.getAssets()
+				let documentPicker = new picker.DocumentViewPicker(this.context!);
+				let documentSelectOptions = new picker.DocumentSelectOptions();
+				documentSelectOptions.maxSelectNumber = 1;
+				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
+					if(documentSelectResult.length > 0){
+						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
+					}
+				})
+				return;
+			}
 			if(command.startsWith("browse_file") || command.startsWith("browse_file_audio") || command.startsWith("browse_file_zip")){
 				let documentPicker = new picker.DocumentViewPicker(this.context!);
 				let documentSelectOptions = new picker.DocumentSelectOptions();
@@ -125,10 +128,12 @@ class PPSSPPService{
 			if(command.startsWith("browse_folder")){
 				let documentPicker = new picker.DocumentViewPicker(this.context!);
 				let documentSelectOptions = new picker.DocumentSelectOptions();
-
+				documentSelectOptions
 				documentPicker.select(documentSelectOptions).then((documentSelectResult)=>{
 					if(documentSelectResult.length > 0){
-						ppsspp?.sendRequestResult(parseInt(params), true, documentSelectResult[0], 0)
+						let uri = documentSelectResult[0].replace("file:/", "");
+
+						ppsspp?.sendRequestResult(parseInt(params), true, uri, 0)
 					}
 				})
 			}

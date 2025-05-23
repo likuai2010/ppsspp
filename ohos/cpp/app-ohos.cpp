@@ -185,7 +185,7 @@ static napi_value onPostCommand(napi_env env, napi_callback_info info) {
     napi_value jsCb = nullptr;
     napi_get_cb_info(env, info, &argc, &jsCb, nullptr, nullptr);
     napi_value resourceName = nullptr;
-    napi_create_string_latin1(env, " postCommand", NAPI_AUTO_LENGTH, &resourceName);
+    napi_create_string_latin1(env, "postCommand", NAPI_AUTO_LENGTH, &resourceName);
     napi_create_threadsafe_function(env, jsCb, nullptr, resourceName, 0, 1, nullptr, nullptr, nullptr, CallPostCommand, &postCommand_tsfn);
     return nullptr;
 }
@@ -673,7 +673,6 @@ napi_value Native_Init(napi_env env, napi_callback_info info)
   	DEBUG_LOG(Log::System, "NativeApp.init(): device name: '%s'", systemName.c_str());
     
     std::string externalStorageDir = resDir;
-	std::string additionalStorageDirsString = "";
 	std::string externalFilesDir = "";
 	std::string nativeLibDir = "";
 

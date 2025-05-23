@@ -13,20 +13,39 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
-    "requestPermissions": [ {
-      "name" : "ohos.permission.INTERNET",
-      "usedScene": {
-        "abilities": [
-          "FormAbility"
-        ],
-        "when":"inuse"
-      }
-		}, {
-			"name" : "ohos.permission.READ_WRITE_USER_FILE",
+    "requestPermissions": [
+		{
+		  "name" : "ohos.permission.INTERNET",
+		  "usedScene": {
+			"abilities": [
+			  "EntryAbility"
+			],
+			"when":"always"
+		  }
 		},
-      {
-        "name": "ohos.permission.GET_NETWORK_INFO"
-      }
+		{
+			"name" : "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY",
+			"reason": "$string:app_name",
+			"usedScene": {
+				"abilities": [
+					"EntryAbility"
+				],
+				"when":"always"
+			}
+		},
+		{
+			"name" : "ohos.permission.VIBRATE",
+			"reason": "$string:app_name",
+			"usedScene": {
+				"abilities": [
+					"EntryAbility"
+				],
+				"when":"always"
+			}
+		},
+		{
+			"name": "ohos.permission.GET_NETWORK_INFO"
+	  	}
     ],
     "abilities": [
       {

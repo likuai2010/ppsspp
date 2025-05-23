@@ -479,8 +479,6 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
     } else {
         INFO_LOG(Log::System, "No memstick directory file found (tried to open '%s')", memstickDirFile.c_str());
     }
-
-    Path memstickPath("/data/storage/el1/bundle/entry/resources/resfile/");
     g_Config.memStickDirectory = g_Config.internalDataDirectory;
 
     // Attempt to create directories after reading the path.
